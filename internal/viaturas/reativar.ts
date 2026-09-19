@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // POST /api/viaturas/reativar
 // Reativa viatura (sai do estado de descarte).
 // Zera emDescarga e marca ativo=true.
@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ts = now();
   await sql`
     UPDATE viaturas
-    SET ativo = 1, emDescarga = 0, atualizadoEm = ${ts}, atualizadoPor = ${user.id}
+    SET ativo = TRUE, emDescarga = FALSE, atualizadoEm = ${ts}, atualizadoPor = ${user.id}
     WHERE id = ${id}
   `;
 

@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // GET /api/users/list
 // Lista todos os users (apenas gestor/admin)
 // Query: ?onlyApproved=true|false (default true), ?search=texto
@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         LEFT JOIN units un ON un.id = u.unit
         WHERE (LOWER(u.name) LIKE ${s} OR LOWER(u.email) LIKE ${s}
                OR u.cpf LIKE ${s} OR u.re LIKE ${s})
-          AND u.approved = 1
+          AND u.approved = TRUE
         ORDER BY u.name
         LIMIT 200
       `;
@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         SELECT u.*, un.name as unitName, un.code as unitCode, un.sigla as unitSigla
         FROM users u
         LEFT JOIN units un ON un.id = u.unit
-        WHERE u.approved = 1
+        WHERE u.approved = TRUE
         ORDER BY u.name
         LIMIT 200
       `;

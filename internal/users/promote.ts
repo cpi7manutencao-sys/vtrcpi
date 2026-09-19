@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // POST /api/users/promote
 // Admin master promove/reatroa user (muda role, unidades, escopo)
 // Header: Authorization: Bearer <jwt>
@@ -58,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`[promote] userId=${userId} matriz=${matrizId} filhasSelecionadas=${filhasIds?.length || 0} -> resolved=${resolvedUnits.length} unidades`);
   }
 
-  await sql`UPDATE users SET promotedAt = ${now()}, approved = 1, active = 1 WHERE id = ${userId}`;
+  await sql`UPDATE users SET promotedAt = ${now()}, approved = TRUE, active = TRUE WHERE id = ${userId}`;
   if (viaturasRole !== undefined) {
     await sql`UPDATE users SET viaturasRole = ${viaturasRole} WHERE id = ${userId}`;
   }

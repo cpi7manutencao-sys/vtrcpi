@@ -1,6 +1,6 @@
-// ============================================================
+﻿// ============================================================
 // POST /api/viaturas/colocar-em-descarga
-// Envia viatura para o Processo de Descarte (emDescarga=1).
+// Envia viatura para o Processo de Descarte (emDescarga=TRUE).
 // Sai da aba Viaturas e fica disponivel apenas na aba "Processo de Descarga".
 // Reverte via /api/viaturas/reativar.
 // Clone de convex/viaturas.ts:colocarViaturaEmDescarga
@@ -47,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ts = now();
   await sql`
     UPDATE viaturas SET
-      emDescarga = 1,
+      emDescarga = TRUE,
       atualizadoEm = ${ts},
       atualizadoPor = ${user.id}
     WHERE id = ${viaturaId}

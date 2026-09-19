@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // POST /api/agendamentos/create
 // Cria novo agendamento
 // Clone de convex/agendamentos.ts:create
@@ -72,8 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Busca gestores + admins
     const cobridoresRes = await sql`
       SELECT unidadesGestor FROM users
-      WHERE (viaturasRole = 'gestor' OR viaturasRole = 'admin' OR isMaster = 1)
-        AND active = 1
+      WHERE (viaturasRole = 'gestor' OR viaturasRole = 'admin' OR isMaster = TRUE)
+        AND active = TRUE
     `;
     let temGestor = false;
     for (const c of cobridoresRes.rows) {

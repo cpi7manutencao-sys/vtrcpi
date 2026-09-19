@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // GET /api/units/list
 // Lista unidades com RLS por role (igual viaturas/list.ts).
 // FIX (William 2026-09-16 v75): editor/gestor ve so unidades
@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const wheres: string[] = [];
   const params: any[] = [];
 
-  if (activeOnly) wheres.push("active = 1");
+  if (activeOnly) wheres.push("active = TRUE");
   if (unidadesAutorizadas.length > 0) {
     const ph = unidadesAutorizadas.map(() => "?").join(",");
     wheres.push(`id IN (${ph})`);

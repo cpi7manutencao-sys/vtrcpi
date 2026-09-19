@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // GET /api/units/list-hierarchical
 // Lista hierarquica (matrizes + 1 nivel de filhos).
 // Clone de convex/units.ts:listHierarchical
@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(auth.status).json({ ok: false, error: auth.error });
   }
 
-  const r = await sql`SELECT * FROM units WHERE active = 1 ORDER BY code`;
+  const r = await sql`SELECT * FROM units WHERE active = TRUE ORDER BY code`;
   const all: any[] = r.rows;
   const matrizes = all.filter((u: any) => !u.parentUnit);
 

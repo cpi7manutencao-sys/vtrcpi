@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // GET /api/dashboard/get-totais
 // Retorna totais por unidade (igual a capa MAPA DE VIATURAS).
 // CLONE FIEL de convex/dashboard.ts:getTotaisPorUnidade
@@ -24,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // RLS - igual Convex
   let unidadesIncluir: number[] = [];
   if (user.viaturasRole === "admin" || user.isMaster) {
-    const uRes = await sql`SELECT id FROM units WHERE active = 1`;
+    const uRes = await sql`SELECT id FROM units WHERE active = TRUE`;
     unidadesIncluir = uRes.rows.map((r: any) => r.id);
   } else if (user.viaturasRole === "gestor" || user.viaturasRole === "editor") {
     const unidades = user.viaturasRole === "gestor"

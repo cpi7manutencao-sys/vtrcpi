@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // GET /api/dashboard/evolucao-mensal?opm=X&subordinada=Y
 // Evolucao mensal de viaturas (operando x baixada).
 // CLONE FIEL de convex/dashboard.ts:evolucaoMensal
@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 1) RLS
   let unidadesIncluir: number[] = [];
   if (user.viaturasRole === "admin" || user.isMaster) {
-    const uRes = await sql`SELECT id FROM units WHERE active = 1`;
+    const uRes = await sql`SELECT id FROM units WHERE active = TRUE`;
     unidadesIncluir = uRes.rows.map((r: any) => r.id);
   } else if (user.viaturasRole === "gestor" || user.viaturasRole === "editor") {
     const unidades = user.viaturasRole === "gestor"
@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Exclui emDescarga (consistente com list/getTotais)
   const ph = unidadesIncluir.map(() => "?").join(",");
   const vRes = await query(
-    `SELECT criadoEm, dataBaixa, dataReativadoEm, opm, emDescarga FROM viaturas WHERE opm IN (${ph}) AND emDescarga = 0`,
+    `SELECT criadoEm, dataBaixa, dataReativadoEm, opm, emDescarga FROM viaturas WHERE opm IN (${ph}) AND emDescarga = FALSE`,
     unidadesIncluir
   );
   let viaturasFiltradas = vRes.rows;

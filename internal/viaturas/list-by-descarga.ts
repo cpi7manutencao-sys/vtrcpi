@@ -1,6 +1,6 @@
-// ============================================================
+﻿// ============================================================
 // GET /api/viaturas/list-by-descarga
-// Lista viaturas em processo de descarga (emDescarga=1)
+// Lista viaturas em processo de descarga (emDescarga=TRUE)
 // com RLS por role (igual viaturas/list.ts).
 // Clone de convex/viaturas.ts:listByDescarga
 // ============================================================
@@ -49,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // FIX (William v72): usar ? em vez de $1 (SQLite)
-  const wheres: string[] = ["v.emDescarga = 1"];
+  const wheres: string[] = ["v.emDescarga = TRUE"];
   const params: any[] = [];
 
   if (unidadesAutorizadas.length > 0) {

@@ -21,7 +21,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const session = auth.session;
   const opm = (req.query.opm as string) || null;
-  const ativo = req.query.ativo === "false" ? 0 : req.query.ativo === "true" ? 1 : null;
+  // FIX (William 2026-09-19): Postgres usa boolean, nao 0/1
+  const ativo = req.query.ativo === "false" ? false : req.query.ativo === "true" ? true : null;
   const tipo = (req.query.tipo as string) || null;
   const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : null;
 
@@ -61,7 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Monta WHERE
   // FIX (William 2026-09-15): better-sqlite3 usa ? placeholders (nao $1)
-  const wheres: string[] = ["v.emDescarga = 0"]; // exclui descarga
+  // FIX (William 2026-09-19): Postgres usa boolean, nao 0/1
+  const wheres: string[] = ["v.emDescarga = FALSE"]; // exclui descarga
   const params: any[] = [];
 
   if (unidadesAutorizadas.length > 0) {

@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // POST /api/agendamentos/editar-odometro
 // Edita odometro de agendamento. So gestor/admin.
 // Clone de convex/agendamentos.ts:editarOdometro
@@ -53,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       UPDATE agendamentos
       SET odometroRetirada = ${novoOdometro}, odometroRetiradaEm = ${ts},
           odometroRetiradaPor = ${user.id}, kmRodados = ${kmRodados},
-          odometroEditado = 1, atualizadoEm = ${ts}
+          odometroEditado = TRUE, atualizadoEm = ${ts}
       WHERE id = ${agendamentoId}
     `;
   } else {
@@ -71,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       UPDATE agendamentos
       SET odometroDevolucao = ${novoOdometro}, odometroDevolucaoEm = ${ts},
           odometroDevolucaoPor = ${user.id}, kmRodados = ${kmRodados},
-          odometroEditado = 1, atualizadoEm = ${ts}
+          odometroEditado = TRUE, atualizadoEm = ${ts}
       WHERE id = ${agendamentoId}
     `;
   }

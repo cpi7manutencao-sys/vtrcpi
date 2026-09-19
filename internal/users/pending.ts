@@ -1,6 +1,6 @@
-// ============================================================
+﻿// ============================================================
 // GET /api/users/pending
-// Lista users pendentes de aprovacao (approved=0, isMaster=0)
+// Lista users pendentes de aprovacao (approved=FALSE, isMaster=FALSE)
 // Apenas GESTOR ou ADMIN podem ver
 // Header: Authorization: Bearer <jwt>
 // ============================================================
@@ -26,8 +26,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     SELECT u.*, un.name as unitName, un.code as unitCode, un.sigla as unitSigla
     FROM users u
     LEFT JOIN units un ON un.id = u.unit
-    WHERE u.approved = 0
-      AND u.isMaster = 0
+    WHERE u.approved = FALSE
+      AND u.isMaster = FALSE
       AND u.cpf IS NOT NULL
     ORDER BY u.createdAt ASC
   `;

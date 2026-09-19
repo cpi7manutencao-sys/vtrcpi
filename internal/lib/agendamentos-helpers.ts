@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // agendamentos-helpers.ts - Helpers compartilhados (clone de convex/_helpers.ts)
 // ============================================================
 
@@ -28,7 +28,7 @@ export async function getUserById(userId: number): Promise<any> {
 }
 
 /**
- * Retorna a lista de IDs (number[]) das unidades onde o user é gestor/editor,
+ * Retorna a lista de IDs (number[]) das unidades onde o user Ã© gestor/editor,
  * incluindo recursao para sub-OPMs filhas.
  *
  * FIX (William 2026-08-21): alem da hierarquia tecnica (parentUnit),
@@ -58,13 +58,13 @@ async function adicionarArvoreCompleta(
   resultado.add(unidadeId);
 
   // 1) Descendentes tecnicos (parentUnit)
-  const filhas = await sql`SELECT id FROM units WHERE parentUnit = ${unidadeId} AND active = 1`;
+  const filhas = await sql`SELECT id FROM units WHERE parentUnit = ${unidadeId} AND active = TRUE`;
   for (const f of filhas.rows) {
     await adicionarArvoreCompleta(f.id, resultado);
   }
 
   // 2) Subordinadas funcionais (commandUnit)
-  const subordinadas = await sql`SELECT id FROM units WHERE commandUnit = ${unidadeId} AND active = 1`;
+  const subordinadas = await sql`SELECT id FROM units WHERE commandUnit = ${unidadeId} AND active = TRUE`;
   for (const s of subordinadas.rows) {
     await adicionarArvoreCompleta(s.id, resultado);
   }
@@ -88,7 +88,7 @@ async function adicionarArvoreTecnica(
 ): Promise<void> {
   if (resultado.has(unidadeId)) return;
   resultado.add(unidadeId);
-  const filhas = await sql`SELECT id FROM units WHERE parentUnit = ${unidadeId} AND active = 1`;
+  const filhas = await sql`SELECT id FROM units WHERE parentUnit = ${unidadeId} AND active = TRUE`;
   for (const f of filhas.rows) {
     await adicionarArvoreTecnica(f.id, resultado);
   }
