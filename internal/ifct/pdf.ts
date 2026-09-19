@@ -7,35 +7,38 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import PDFDocument from "pdfkit";
-// @ts-ignore - svg-to-pdfkit nao tem tipos oficiais
-import SVGtoPDF from "svg-to-pdfkit";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { sql } from "../lib/db";
+import { safeRequire } from "../lib/safe-load";
 
-// FIX (William 2026-09-10 v51): registra doc.svg() no PROTOTIPO do PDFDocument
-// uma unica vez no startup do modulo. ANTES (v50), chamava SVGtoPDF(doc) que
-// falha com "the input does not look like a valid SVG" pq espera o SVG como
-// argumento. Agora adiciona o metodo ao prototipo (igual README do svg-to-pdfkit)
-// e renderiza o SVG real quando chamada.
+// FIX William 2026: pdfkit/svg-to-pdfkit sao modulos nativos que NAO funcionam
+// em Vercel Serverless. Carregamos sob demanda via safeRequire.
+const PDFDocument: any = safeRequire("pdfkit");
+const SVGtoPDF: any = safeRequire("svg-to-pdfkit");
+
 let svgSupportInstalled = false;
 function installSvgSupport() {
   if (svgSupportInstalled) return;
+  if (!PDFDocument) {
+    console.log("[pdf] pdfkit NAO disponivel - endpoint retorna 503");
+    return;
+  }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const proto = (PDFDocument as any).prototype;
+    const proto = PDFDocument.prototype;
     if (typeof proto.svg === "function") {
       svgSupportInstalled = true;
       return;
     }
-    proto.svg = function (svg: string, x: number, y: number, opts: any = {}) {
-      return SVGtoPDF(this, svg, x, y, opts), this;
-    };
-    svgSupportInstalled = true;
-    console.log("[pdf] svg-to-pdfkit registrado em PDFDocument.prototype.svg");
+    if (SVGtoPDF) {
+      proto.svg = function (svg: string, x: number, y: number, opts: any = {}) {
+        return SVGtoPDF(this, svg, x, y, opts), this;
+      };
+      svgSupportInstalled = true;
+      console.log("[pdf] svg-to-pdfkit registrado em PDFDocument.prototype.svg");
+    }
   } catch (e) {
     console.log("[pdf] falha ao instalar svg-to-pdfkit:", (e as Error).message);
   }
@@ -82,6 +85,14 @@ if (BRASAO_PATH) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
+  }
+
+  // pdfkit NAO funciona em Vercel Serverless
+  if (!PDFDocument) {
+    return res.status(503).json({
+      ok: false,
+      error: "PDF indisponivel neste ambiente (pdfkit requer binario nativo indisponivel em Vercel)",
+    });
   }
 
   const token = (req.query.token as string) || "";

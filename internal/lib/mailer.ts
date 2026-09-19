@@ -1,15 +1,25 @@
 // ============================================================
-// api/_lib/mailer.ts
-// Helper de envio de email via SMTP (Gmail).
+// mailer.ts - Helper de envio de email via SMTP (Gmail).
 // Carrega config do .env (SMTP_HOST, SMTP_PORT, SMTP_USER, etc).
 // Pool de conexoes (reuso) com nodemailer.
 // Logs detalhados pra debug (sucesso OU erro).
+//
+// IMPORTANTE: nodemailer nao funciona em Vercel Serverless sem config
+// adicional de host (precisa de SMTP externo). Por isso usamos dynamic
+// import via safeRequire.
 // ============================================================
 
-import nodemailer from "nodemailer";
-import type { Transporter } from "nodemailer";
+import { createRequire } from "node:module";
+const require_ = createRequire(import.meta.url);
 
-let transporter: Transporter | null = null;
+let nodemailer: any = null;
+try {
+  nodemailer = require_("nodemailer");
+} catch (e: any) {
+  console.warn("[mailer] nodemailer nao disponivel:", e.message);
+}
+
+let transporter: any = null;
 let transporterInitAt: number | null = null;
 let transporterError: string | null = null;
 
@@ -26,13 +36,20 @@ function readEnv(): {
     port: parseInt(process.env.SMTP_PORT || "465", 10),
     secure: (process.env.SMTP_SECURE || "true") === "true",
     user: process.env.SMTP_USER || "",
-    pass: (process.env.SMTP_PASS || "").replace(/\s+/g, ""), // tira espacos do app password
+    pass: (process.env.SMTP_PASS || "").replace(/\s+/g, ""),
     fromName: process.env.SMTP_FROM_NAME || "Sistema de Viaturas CPI-7",
   };
 }
 
-export function getTransporter(): Transporter | null {
+export function getTransporter(): any {
   if (transporter) return transporter;
+  if (!nodemailer) {
+    if (!transporterError) {
+      transporterError = "nodemailer nao disponivel";
+      console.log(`[mailer] ${transporterError}`);
+    }
+    return null;
+  }
   const env = readEnv();
   if (!env.user || !env.pass) {
     if (!transporterError) {
@@ -47,10 +64,8 @@ export function getTransporter(): Transporter | null {
       port: env.port,
       secure: env.secure,
       auth: { user: env.user, pass: env.pass },
-      // Pool de conexoes (reuso evita reconectar a cada envio)
       pool: true,
       maxConnections: 3,
-      // Timeout reduzido pra nao travar API
       connectionTimeout: 10_000,
       socketTimeout: 15_000,
     });
@@ -79,19 +94,14 @@ export type SendEmailResult = {
 };
 
 export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
-  // MODO DEV/MOCK: se SMTP_MOCK=true OU NODE_ENV=development, apenas
-  // loga o email (nao envia de verdade). Util pra testar local sem
-  // depender de SMTP externo (firewall da PM bloqueia SMTP).
-  // Em prod (Vercel/AWS), SMTP_MOCK nao esta setado e o SMTP real funciona.
   const isMock =
     (process.env.SMTP_MOCK || "").toLowerCase() === "true" ||
     (process.env.NODE_ENV || "").toLowerCase() === "development";
-  if (isMock) {
+  if (isMock || !nodemailer) {
     const fakeId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@mock.local>`;
-    console.log(`[mailer][MOCK] email NAO enviado (DEV mode)`);
+    console.log(`[mailer][MOCK] email NAO enviado (DEV mode ou nodemailer indisponivel)`);
     console.log(`[mailer][MOCK]   to:      ${params.to}`);
     console.log(`[mailer][MOCK]   subject: ${params.subject}`);
-    console.log(`[mailer][MOCK]   text (1st 200 chars): ${(params.text || "").slice(0, 200).replace(/\n/g, " | ")}`);
     return { ok: true, messageId: fakeId };
   }
 
@@ -121,9 +131,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
   }
 }
 
-// Util: verifica se SMTP ta configurado (sem inicializar)
 export function isMailerConfigured(): boolean {
-  // Em modo MOCK, sempre retorna true (porque o mock simula sucesso)
   const isMock =
     (process.env.SMTP_MOCK || "").toLowerCase() === "true" ||
     (process.env.NODE_ENV || "").toLowerCase() === "development";
