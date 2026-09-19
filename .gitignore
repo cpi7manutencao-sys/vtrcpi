@@ -77,3 +77,4 @@ temp_*/
 .ronda-tmp/
 
 .vercel
+.env*
