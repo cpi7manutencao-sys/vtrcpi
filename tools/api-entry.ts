@@ -152,6 +152,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const url = req.url || "";
   const path = url.split("?")[0];
 
+  // ROTA DE DEBUG: /api/ping - teste basico pra ver se a function responde
+  if (path === "/api/ping") {
+    console.log("[api-router] /api/ping OK - function is running");
+    return res.status(200).json({ ok: true, message: "pong", timestamp: Date.now() });
+  }
+
   const mod = routes[path];
 
   if (!mod) {
@@ -164,5 +170,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  return await mod.default(req, res);
+  try {
+    return await mod.default(req, res);
+  } catch (e: any) {
+    console.error(`[api-router] Error in ${path}:`, e?.message, e?.stack);
+    if (!res.headersSent) {
+      return res.status(500).json({ ok: false, error: e?.message || "Internal error" });
+    }
+  }
 }
