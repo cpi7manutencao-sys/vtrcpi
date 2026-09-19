@@ -1,49 +1,68 @@
-﻿// ============================================================
-// db.ts - AbstraÃ§Ã£o de DB
-// DEV SQLite (better-sqlite3, leve e nativo Node) OU
-// PGlite (WASM pesado, deprecated por OOM) OU
-// Vercel Postgres (prod)
+// ============================================================
+// db.ts - Abstracao de DB
+// DEV SQLite (better-sqlite3) OU PGlite OU Vercel Postgres (prod)
 // API unificada: query(text, params) -> { rows: [...] }
+//
+// IMPORTANTE: Em Vercel Serverless, modulos nativos (better-sqlite3)
+// NAO funcionam. Por isso usamos createRequire + try/catch pra
+// carregar SOB DEMANDA.
 // ============================================================
 
-import Database from "better-sqlite3";
-import { existsSync } from "node:fs";
-import { PGlite } from "@electric-sql/pglite";
+import { createRequire } from "node:module";
+const require_ = createRequire(import.meta.url);
+
+// Carrega modulo nativo sob demanda; retorna null se nao existir
+function safeRequire(name: string): any {
+  try {
+    return require_(name);
+  } catch (e: any) {
+    console.warn(`[db] ${name} nao disponivel:`, e.message);
+    return null;
+  }
+}
+
+let sqliteDb: any = null;
+let pgliteInstance: any = null;
+let pgliteReady: Promise<void> | null = null;
 
 // Detecta modo
 const POSTGRES_URL = process.env.POSTGRES_URL || "";
-const usePGlite =
-  POSTGRES_URL.startsWith("pglite://");
+const usePostgres =
+  POSTGRES_URL.startsWith("postgres://") || POSTGRES_URL.startsWith("postgresql://");
+const usePGlite = !usePostgres && POSTGRES_URL.startsWith("pglite://");
 const useSqlite =
-  !POSTGRES_URL ||
-  POSTGRES_URL.startsWith("sqlite://") ||
-  POSTGRES_URL === "sqlite";
+  !usePostgres && !usePGlite &&
+  (!POSTGRES_URL ||
+    POSTGRES_URL.startsWith("sqlite://") ||
+    POSTGRES_URL === "sqlite");
 
-let sqliteDb: Database.Database | null = null;
-let pgliteInstance: PGlite | null = null;
-let pgliteReady: Promise<void> | null = null;
-
-function getSqlite(): Database.Database {
-  if (!sqliteDb) {
-    const file = POSTGRES_URL.startsWith("sqlite://")
-      ? POSTGRES_URL.replace("sqlite://", "")
-      : "./viaturas.db";
-    sqliteDb = new Database(file);
-    sqliteDb.pragma("journal_mode = WAL");
-    sqliteDb.pragma("foreign_keys = ON");
-    console.log(`[db] SQLite opened: ${file}`);
+function getSqlite() {
+  if (sqliteDb) return sqliteDb;
+  const Database = safeRequire("better-sqlite3");
+  if (!Database) {
+    throw new Error("better-sqlite3 nao disponivel. Em prod, configure POSTGRES_URL.");
   }
+  const file = POSTGRES_URL.startsWith("sqlite://")
+    ? POSTGRES_URL.replace("sqlite://", "")
+    : "./viaturas.db";
+  sqliteDb = new Database(file);
+  sqliteDb.pragma("journal_mode = WAL");
+  sqliteDb.pragma("foreign_keys = ON");
+  console.log(`[db] SQLite opened: ${file}`);
   return sqliteDb;
 }
 
-function getPGlite(): PGlite {
-  if (!pgliteInstance) {
-    const dataDir = POSTGRES_URL.startsWith("pglite://")
-      ? POSTGRES_URL.replace("pglite://", "")
-      : "./.pgdata";
-    pgliteInstance = new PGlite(dataDir);
-    pgliteReady = pgliteInstance.waitReady;
+function getPGliteDb() {
+  if (pgliteInstance) return pgliteInstance;
+  const PGliteMod = safeRequire("@electric-sql/pglite");
+  if (!PGliteMod) {
+    throw new Error("@electric-sql/pglite nao disponivel.");
   }
+  const dataDir = POSTGRES_URL.startsWith("pglite://")
+    ? POSTGRES_URL.replace("pglite://", "")
+    : "./.pgdata";
+  pgliteInstance = new PGliteMod.PGlite(dataDir);
+  pgliteReady = pgliteInstance.waitReady;
   return pgliteInstance;
 }
 
@@ -56,9 +75,6 @@ export interface QueryResult<T = any> {
   rowCount: number;
 }
 
-// ============================================================
-// Translate Postgres placeholders ($1, $2) to SQLite (?, ?)
-// ============================================================
 function toSqlitePlaceholders(sql: string): string {
   return sql.replace(/\$\d+/g, "?");
 }
@@ -67,62 +83,55 @@ export async function query<T = any>(
   text: string,
   params: any[] = []
 ): Promise<QueryResult<T>> {
-  if (useSqlite) {
-    // Auto-init schema/seed no SQLite
-    await ensureSchema();
-    await ensureSeed();
-    const db = getSqlite();
-    const sqliteSql = toSqlitePlaceholders(text);
-    const stmt = db.prepare(sqliteSql);
-    let rows: any[];
-    let rowCount = 0;
-    // Detecta queries que retornam rows: SELECT, PRAGMA, INSERT/UPDATE/DELETE com RETURNING
-    if (/^\s*(SELECT|PRAGMA)/i.test(text) || /\bRETURNING\b/i.test(text)) {
-      rows = stmt.all(...params);
-      rowCount = rows.length;
-    } else {
-      const info = stmt.run(...params);
-      rowCount = info.changes;
-      rows = [];
+  if (usePostgres) {
+    const vercelPostgres = safeRequire("@vercel/postgres");
+    if (!vercelPostgres) {
+      throw new Error("@vercel/postgres nao disponivel");
     }
-    return { rows: rows as T[], rowCount };
+    const { sql: vsql } = vercelPostgres;
+    const result = await vsql.query(text, params);
+    return {
+      rows: result.rows as T[],
+      rowCount: result.rowCount ?? result.rows.length,
+    };
   }
+
   if (usePGlite) {
     await ensurePGlite();
-    await ensureSchema();
-    await ensureSeed();
-    const result = await getPGlite().query<T>(text, params);
+    const db = getPGliteDb();
+    const result = await db.query<T>(text, params);
     return {
       rows: result.rows,
       rowCount: result.affectedRows ?? result.rows.length,
     };
   }
-  // Vercel Postgres (prod)
-  const { sql: vsql } = await import("@vercel/postgres");
-  const result = await (vsql as any).query(text, params);
-  return {
-    rows: result.rows,
-    rowCount: result.rowCount ?? result.rows.length,
-  };
-}
 
-// ============================================================
-// NOTA: nao precisa de toCamel/toSnake - schema ja eh camelCase (clone Convex)
-// ============================================================
+  // SQLite
+  const db = getSqlite();
+  const sqliteSql = toSqlitePlaceholders(text);
+  const stmt = db.prepare(sqliteSql);
+  let rows: any[];
+  let rowCount = 0;
+  if (/^\s*(SELECT|PRAGMA)/i.test(text) || /\bRETURNING\b/i.test(text)) {
+    rows = stmt.all(...params);
+    rowCount = rows.length;
+  } else {
+    const info = stmt.run(...params);
+    rowCount = info.changes;
+    rows = [];
+  }
+  return { rows: rows as T[], rowCount };
+}
 
 export const now = () => Date.now();
 
-// ============================================================
-// Schema/Seed (SQLite OU PGlite - nao usa em prod/Vercel Postgres)
-// ============================================================
-
+// Schema/Seed (SQLite/PGlite dev only - Postgres roda via Query tab)
 let schemaInitialized = false;
 export async function ensureSchema(): Promise<void> {
-  if (usePGlite || schemaInitialized) return;
-  if (!useSqlite) return;
-  const fs = await import("fs/promises");
-  const path = await import("path");
-  // Procura schema.sqlite.sql
+  if (usePostgres) return;
+  if (!useSqlite && !usePGlite) return;
+  const fs = require_("fs/promises");
+  const path = require_("path");
   const candidates = [
     path.join(process.cwd(), "schema.sqlite.sql"),
     path.join(process.cwd(), "..", "schema.sqlite.sql"),
@@ -140,59 +149,22 @@ export async function ensureSchema(): Promise<void> {
     return;
   }
   try {
-    getSqlite().exec(schema);
-    schemaInitialized = true;
-    console.log("[db] Schema SQLite inicializado");
+    if (useSqlite) {
+      const db = getSqlite();
+      db.exec(schema);
+      schemaInitialized = true;
+      console.log("[db] Schema SQLite inicializado");
+    } else if (usePGlite) {
+      await ensurePGlite();
+      const db = getPGliteDb();
+      await db.exec(schema);
+      schemaInitialized = true;
+      console.log("[db] Schema PGlite inicializado");
+    }
   } catch (e: any) {
     console.error("[db] Erro ao rodar schema:", e.message);
   }
 }
-
-let seedInitialized = false;
-export async function ensureSeed(): Promise<void> {
-  if (usePGlite || seedInitialized) return;
-  if (!useSqlite) return;
-  await ensureSchema();
-  const db = getSqlite();
-  // Verifica se ja tem units (clone Convex: 10 matrizes = CPI-7 + 9 BPMs)
-  const count = db.prepare("SELECT COUNT(*) as c FROM units").get() as { c: number };
-  if (count.c > 0) {
-    seedInitialized = true;
-    return;
-  }
-  // Insere as 10 matrizes (clone EXATO do seed_units.py do Convex legacy).
-  // - parentUnit: NULL (clearCPI7Children deixa os BPMs como raizes)
-  // - commandUnit: NULL (sem sub-OPMs cadastradas)
-  const insertUnit = db.prepare(`
-    INSERT OR IGNORE INTO units (code, name, sigla, parentUnit, commandUnit, active)
-    VALUES (?, ?, ?, NULL, NULL, 1)
-  `);
-  const units = [
-    ["607000000", "CPI-7",     "CPI7"],
-    ["607070000", "7o BPM/I",  "7BPMI"],
-    ["607120000", "12o BPM/I", "12BPMI"],
-    ["607140000", "14o BAEP",  "14BAEP"],
-    ["607220000", "22o BPM/I", "22BPMI"],
-    ["607400000", "40o BPM/I", "40BPMI"],
-    ["607500000", "50o BPM/I", "50BPMI"],
-    ["607530000", "53o BPM/I", "53BPMI"],
-    ["607540000", "54o BPM/I", "54BPMI"],
-    ["607550000", "55o BPM/I", "55BPMI"],
-  ];
-  for (const [code, name, sigla] of units) {
-    insertUnit.run(code, name, sigla);
-  }
-  // William: criado via Google OAuth no primeiro login (NÃƒO seed hardcoded)
-  // O sistema de auth (auth/google/callback) checa se ja existe user com aquele
-  // googleId; se nao, cria. William tem isMaster=TRUE via promotion.
-  // Por enquanto NAO criamos user hardcoded - ele aparece no primeiro login.
-  seedInitialized = true;
-  console.log("[db] Seed SQLite: 10 units inseridas (clone seed_units.py do Convex)");
-}
-
-// ============================================================
-// sql template tag (compatibilidade)
-// ============================================================
 
 function buildTaggedSql(strings: TemplateStringsArray, values: any[]): { text: string; params: any[] } {
   let text = "";
@@ -211,17 +183,17 @@ export async function sql(strings: TemplateStringsArray, ...values: any[]): Prom
 }
 
 export async function exec(text: string): Promise<void> {
-  if (useSqlite) {
-    getSqlite().exec(text);
+  if (usePostgres) {
+    const vercelPostgres = safeRequire("@vercel/postgres");
+    if (vercelPostgres) await vercelPostgres.sql.query(text);
     return;
   }
   if (usePGlite) {
     await ensurePGlite();
-    await getPGlite().exec(text);
+    const db = getPGliteDb();
+    await db.exec(text);
     return;
   }
-  const { sql: vsql } = await import("@vercel/postgres");
-  await vsql.query(text);
+  const db = getSqlite();
+  db.exec(text);
 }
-
-export { query as default };
