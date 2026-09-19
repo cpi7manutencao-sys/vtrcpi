@@ -16,7 +16,6 @@ logs/
 temp_*/
 docs/
 api/_lib/brasao.jpg
-api/index.ts
 api/.gitkeep
 .ronda-tmp/
 .env
