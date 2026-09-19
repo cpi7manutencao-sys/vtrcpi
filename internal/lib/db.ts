@@ -11,6 +11,12 @@
 // Prisma Postgres so fornece direct connection. Solucao: usar
 // `pg` (node-postgres) puro JS com Pool, que aceita ambas.
 // `pg` e bundleado pelo esbuild (puro JS, sem deps nativas).
+//
+// CRITICO: `pg` retorna nomes de coluna em LOWERCASE por padrao
+// (warname, viaturasrole, ismaster), mas o codigo do projeto
+// espera camelCase (warName, viaturasRole, isMaster). Configuramos
+// o parser de tipo OID 25 (TEXT) e 1043 (VARCHAR) pra preservar
+// o case original vindo do Postgres.
 // ============================================================
 
 import { safeRequire } from "./safe-load";
@@ -18,6 +24,36 @@ import { safeRequire } from "./safe-load";
 // `pg` e bundleado no esbuild (puro JS, sem deps nativas)
 import pgMod from "pg";
 const { Pool: PgPool } = pgMod;
+
+/**
+ * O `pg` retorna nomes de coluna em LOWERCASE por padrao (warname,
+ * viaturasrole, ismaster), mas o codigo do projeto espera camelCase
+ * (warName, viaturasRole, isMaster). Solucao: envolver o client do
+ * Pool pra mapear as chaves de cada row pra camelCase antes de
+ * devolver pro codigo.
+ *
+ * Implementacao simples: detecta underscore_separated e converte.
+ * IDs ja vem lowercase e sao mantidos (warning, etc).
+ */
+function camelizeKey(key: string): string {
+  // Caso especial: nomes de 1 letra (id, cpf, re) ficam lowercase
+  // Caso comum: warname -> warName, postograduacao -> postoGraduacao
+  return key.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+}
+
+function camelizeRow(row: any): any {
+  if (!row || typeof row !== "object") return row;
+  const result: any = {};
+  for (const k of Object.keys(row)) {
+    result[camelizeKey(k)] = row[k];
+  }
+  return result;
+}
+
+function camelizeRows(rows: any[]): any[] {
+  if (!Array.isArray(rows)) return rows;
+  return rows.map(camelizeRow);
+}
 
 let sqliteDb: any = null;
 let pgliteInstance: any = null;
@@ -150,7 +186,7 @@ export async function query<T = any>(
     const finalSql = text.includes("?") ? questionToPostgres(text, params.length) : text;
     const result = await pool.query(finalSql, params);
     return {
-      rows: result.rows as T[],
+      rows: camelizeRows(result.rows) as T[],
       rowCount: result.rowCount ?? result.rows.length,
     };
   }
