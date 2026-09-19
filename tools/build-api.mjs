@@ -28,7 +28,7 @@ await build({
   bundle: true,
   platform: "node",
   target: "node20",
-  format: "esm",
+  format: "cjs",
   outfile: join(outBase, "functions", "api", "index.func", "index.js"),
   external: [
     "@vercel/node",
