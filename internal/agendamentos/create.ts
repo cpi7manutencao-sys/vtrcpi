@@ -75,9 +75,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       WHERE (viaturasRole = 'gestor' OR viaturasRole = 'admin' OR isMaster = TRUE)
         AND active = TRUE
     `;
+    console.log("[debug] cobridoresRes.rows:", JSON.stringify(cobridoresRes.rows));
     let temGestor = false;
     for (const c of cobridoresRes.rows) {
-      const ugs = parseJsonArray(c.unidadesGestor);
+      console.log("[debug] c keys:", Object.keys(c), "c.unidadesGestor:", c.unidadesGestor, "c.unidadesgestor:", c.unidadesgestor);
+      const ugs = parseJsonArray(c.unidadesGestor || c.unidadesgestor);
+      console.log("[debug] ugs:", ugs, "includes", unidadeRequerenteId, "?", ugs.includes(unidadeRequerenteId));
       if (ugs.includes(unidadeRequerenteId)) { temGestor = true; break; }
     }
     if (!temGestor) {
