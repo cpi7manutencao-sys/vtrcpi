@@ -1,5 +1,5 @@
 -- ============================================================
--- Sistema de Viaturas CPI-7 - Schema POSTGRES (Vercel Postgres)
+-- Sistema de Viaturas CPI-7 - Schema POSTGRES (Vercel/Prisma)
 -- Baseado no schema.sqlite.sql convertido pra Postgres
 -- Campos em camelCase (clone do Convex legacy)
 -- Adaptacoes:
@@ -8,6 +8,17 @@
 --   TEXT (JSON arrays) -> JSONB
 --   INTEGER (0/1 boolean) -> BOOLEAN
 --   REAL -> NUMERIC
+--
+-- ORDEM DE CRIACAO (importante por causa das FKs):
+--   1. units      (sem deps)
+--   2. users      (FK -> units)
+--   3. viaturas   (FK -> units, users)   <-- ANTES de agendamentos
+--   4. viaturaHistorico (FK -> viaturas)
+--   5. agendamentos (FK -> users, units, viaturas)
+--   6. rondas     (FK -> viaturas)
+--   7. auditLog   (FK -> users)
+--   8. ifctAbastecimentos (FK -> agendamentos)
+--   9. ifctEncerramentos  (FK -> agendamentos)
 -- ============================================================
 
 -- ============================================================
@@ -34,7 +45,6 @@ CREATE INDEX IF NOT EXISTS idx_units_active ON units(active);
 CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,
 
-  -- Identificacao
   email TEXT UNIQUE NOT NULL,
   cpf TEXT UNIQUE,
   re TEXT,
@@ -49,15 +59,11 @@ CREATE TABLE IF NOT EXISTS users (
   dataNascimento TEXT,
   telefone TEXT,
 
-  -- Role Controle de Materiais
   role TEXT,
-
-  -- Campos especificos Viaturas
   viaturasRole TEXT DEFAULT 'viewer',
   unidadesGestor JSONB DEFAULT '[]'::jsonb,
   unidadesEditor JSONB DEFAULT '[]'::jsonb,
 
-  -- Auth Google (Vercel - adaptacao)
   googleId TEXT UNIQUE,
   picture TEXT,
   approved BOOLEAN DEFAULT FALSE,
@@ -69,7 +75,6 @@ CREATE TABLE IF NOT EXISTS users (
   escopo TEXT DEFAULT 'restrito',
   isMaster BOOLEAN DEFAULT FALSE,
 
-  -- FIX (William 2026-09-08 v24 PDF): assinatura digital do gestor (SVG)
   assinaturaDigitalSvg TEXT,
   assinaturaDigitalCriadoEm BIGINT
 );
@@ -81,107 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_users_viaturasRole ON users(viaturasRole);
 CREATE INDEX IF NOT EXISTS idx_users_googleId ON users(googleId);
 
 -- ============================================================
--- 3. AGENDAMENTOS
--- ============================================================
-CREATE TABLE IF NOT EXISTS agendamentos (
-  id BIGSERIAL PRIMARY KEY,
-
-  -- Solicitante (FK + snapshot)
-  solicitante BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  postoGraduacao TEXT NOT NULL,
-  re TEXT NOT NULL,
-  nomeGuerra TEXT NOT NULL,
-  email TEXT NOT NULL,
-
-  -- Unidade REQUERENTE
-  unidadeRequerente BIGINT REFERENCES units(id) ON DELETE SET NULL,
-  unidadeRequerenteOutro TEXT,
-
-  -- Unidade ORIGEM
-  unidadeOrigem BIGINT REFERENCES units(id) ON DELETE SET NULL,
-  secaoSetor TEXT,
-
-  -- Viatura SOLICITADA
-  tipoViaturaSolicitada TEXT NOT NULL,
-  tipoViaturaOutro TEXT,
-
-  -- Missao
-  dataMissao BIGINT NOT NULL,
-  destino TEXT NOT NULL,
-  finalidade TEXT NOT NULL,
-  oficialAutorizador TEXT NOT NULL,
-
-  -- FIX (William 2026-09-09 v29)
-  horarioApresentacao TEXT,
-
-  -- Motorista (do SAT)
-  solicitanteMotorista BOOLEAN DEFAULT FALSE,
-  motoristaRe TEXT,
-  motoristaPosto TEXT,
-  motoristaNome TEXT,
-  motoristaOpm TEXT,
-  motoristaOpmCode TEXT,
-  motoristaCnh TEXT,
-  motoristaBoletim TEXT,
-  motoristaDataProva TEXT,
-  motoristaPublicacoes JSONB,
-
-  -- Retirada / Devolucao
-  retiradaData BIGINT NOT NULL,
-  retiradaHora TEXT NOT NULL,
-  devolucaoData BIGINT NOT NULL,
-  devolucaoHora TEXT NOT NULL,
-
-  -- Workflow
-  status TEXT NOT NULL DEFAULT 'pendente',
-  aprovadoPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
-  aprovadoEm BIGINT,
-  rejeitadoPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
-  rejeitadoEm BIGINT,
-  motivoRejeicao TEXT,
-  concluidoPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
-  concluidoEm BIGINT,
-  naoCompareceu BOOLEAN DEFAULT FALSE,
-
-  -- Atribuicao de viatura
-  viaturaAtribuida BIGINT REFERENCES viaturas(id) ON DELETE SET NULL,
-
-  -- Odometro
-  odometroRetirada INTEGER,
-  odometroRetiradaEm BIGINT,
-  odometroRetiradaPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
-  odometroDevolucao INTEGER,
-  odometroDevolucaoEm BIGINT,
-  odometroDevolucaoPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
-  kmRodados INTEGER,
-  odometroEditado BOOLEAN DEFAULT FALSE,
-
-  -- IFCT
-  linkIfct TEXT,
-  linkIfctExpiraEm BIGINT,
-  ifctStatus TEXT,
-  ifctData JSONB,
-  ifctValidadoPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
-  ifctValidadoEm BIGINT,
-  ifctValidadoObservacao TEXT,
-
-  -- Auditoria
-  criadoEm BIGINT NOT NULL,
-  atualizadoEm BIGINT
-);
-
-CREATE INDEX IF NOT EXISTS idx_ag_solicitante ON agendamentos(solicitante);
-CREATE INDEX IF NOT EXISTS idx_ag_unidade_requerente ON agendamentos(unidadeRequerente);
-CREATE INDEX IF NOT EXISTS idx_ag_unidade_origem ON agendamentos(unidadeOrigem);
-CREATE INDEX IF NOT EXISTS idx_ag_status ON agendamentos(status);
-CREATE INDEX IF NOT EXISTS idx_ag_dataMissao ON agendamentos(dataMissao);
-CREATE INDEX IF NOT EXISTS idx_ag_unidade_requerente_status ON agendamentos(unidadeRequerente, status);
-CREATE INDEX IF NOT EXISTS idx_ag_linkIfct ON agendamentos(linkIfct);
-CREATE INDEX IF NOT EXISTS idx_ag_ifctStatus ON agendamentos(ifctStatus);
-CREATE INDEX IF NOT EXISTS idx_ag_viaturaAtribuida ON agendamentos(viaturaAtribuida);
-
--- ============================================================
--- 4. VIATURAS
+-- 3. VIATURAS (criada ANTES de agendamentos por causa da FK)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS viaturas (
   id BIGSERIAL PRIMARY KEY,
@@ -221,7 +126,7 @@ CREATE INDEX IF NOT EXISTS idx_vtr_patrimonio ON viaturas(patrimonio);
 CREATE INDEX IF NOT EXISTS idx_vtr_opm_ativo ON viaturas(opm, ativo);
 
 -- ============================================================
--- 5. VIATURA_HISTORICO
+-- 4. VIATURA_HISTORICO
 -- ============================================================
 CREATE TABLE IF NOT EXISTS viaturaHistorico (
   id BIGSERIAL PRIMARY KEY,
@@ -237,6 +142,92 @@ CREATE TABLE IF NOT EXISTS viaturaHistorico (
 
 CREATE INDEX IF NOT EXISTS idx_hist_viatura ON viaturaHistorico(viaturaId, dataHora);
 CREATE INDEX IF NOT EXISTS idx_hist_viatura_tipo ON viaturaHistorico(viaturaId, tipo);
+
+-- ============================================================
+-- 5. AGENDAMENTOS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS agendamentos (
+  id BIGSERIAL PRIMARY KEY,
+
+  solicitante BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  postoGraduacao TEXT NOT NULL,
+  re TEXT NOT NULL,
+  nomeGuerra TEXT NOT NULL,
+  email TEXT NOT NULL,
+
+  unidadeRequerente BIGINT REFERENCES units(id) ON DELETE SET NULL,
+  unidadeRequerenteOutro TEXT,
+  unidadeOrigem BIGINT REFERENCES units(id) ON DELETE SET NULL,
+  secaoSetor TEXT,
+
+  tipoViaturaSolicitada TEXT NOT NULL,
+  tipoViaturaOutro TEXT,
+
+  dataMissao BIGINT NOT NULL,
+  destino TEXT NOT NULL,
+  finalidade TEXT NOT NULL,
+  oficialAutorizador TEXT NOT NULL,
+
+  horarioApresentacao TEXT,
+
+  solicitanteMotorista BOOLEAN DEFAULT FALSE,
+  motoristaRe TEXT,
+  motoristaPosto TEXT,
+  motoristaNome TEXT,
+  motoristaOpm TEXT,
+  motoristaOpmCode TEXT,
+  motoristaCnh TEXT,
+  motoristaBoletim TEXT,
+  motoristaDataProva TEXT,
+  motoristaPublicacoes JSONB,
+
+  retiradaData BIGINT NOT NULL,
+  retiradaHora TEXT NOT NULL,
+  devolucaoData BIGINT NOT NULL,
+  devolucaoHora TEXT NOT NULL,
+
+  status TEXT NOT NULL DEFAULT 'pendente',
+  aprovadoPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  aprovadoEm BIGINT,
+  rejeitadoPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  rejeitadoEm BIGINT,
+  motivoRejeicao TEXT,
+  concluidoPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  concluidoEm BIGINT,
+  naoCompareceu BOOLEAN DEFAULT FALSE,
+
+  viaturaAtribuida BIGINT REFERENCES viaturas(id) ON DELETE SET NULL,
+
+  odometroRetirada INTEGER,
+  odometroRetiradaEm BIGINT,
+  odometroRetiradaPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  odometroDevolucao INTEGER,
+  odometroDevolucaoEm BIGINT,
+  odometroDevolucaoPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  kmRodados INTEGER,
+  odometroEditado BOOLEAN DEFAULT FALSE,
+
+  linkIfct TEXT,
+  linkIfctExpiraEm BIGINT,
+  ifctStatus TEXT,
+  ifctData JSONB,
+  ifctValidadoPor BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  ifctValidadoEm BIGINT,
+  ifctValidadoObservacao TEXT,
+
+  criadoEm BIGINT NOT NULL,
+  atualizadoEm BIGINT
+);
+
+CREATE INDEX IF NOT EXISTS idx_ag_solicitante ON agendamentos(solicitante);
+CREATE INDEX IF NOT EXISTS idx_ag_unidade_requerente ON agendamentos(unidadeRequerente);
+CREATE INDEX IF NOT EXISTS idx_ag_unidade_origem ON agendamentos(unidadeOrigem);
+CREATE INDEX IF NOT EXISTS idx_ag_status ON agendamentos(status);
+CREATE INDEX IF NOT EXISTS idx_ag_dataMissao ON agendamentos(dataMissao);
+CREATE INDEX IF NOT EXISTS idx_ag_unidade_requerente_status ON agendamentos(unidadeRequerente, status);
+CREATE INDEX IF NOT EXISTS idx_ag_linkIfct ON agendamentos(linkIfct);
+CREATE INDEX IF NOT EXISTS idx_ag_ifctStatus ON agendamentos(ifctStatus);
+CREATE INDEX IF NOT EXISTS idx_ag_viaturaAtribuida ON agendamentos(viaturaAtribuida);
 
 -- ============================================================
 -- 6. RONDAS

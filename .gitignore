@@ -16,6 +16,8 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.md
+.env.*.md
 
 # PGlite local data
 .pgdata/
