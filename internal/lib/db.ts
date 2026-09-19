@@ -210,11 +210,46 @@ function camelizeKey(key: string): string {
   return COLUMN_CAMEL_MAP[key.toLowerCase()] || key;
 }
 
+/**
+ * Converte valores BIGINT/INTEGER que o `pg` retorna como STRING em
+ * number pra que comparacoes como Array.includes(id) funcionem.
+ *
+ * Aplicado a campos conhecidos: id, FKs (userId, viaturaiId, etc) e
+ * BIGINTs em geral (dataMissao, criadoEm, etc).
+ */
+const NUMERIC_FIELDS = new Set([
+  "id", "userid", "viaturaiid", "agendamentoid", "solicitante",
+  "parentunit", "commandunit", "unit", "opm", "createdby", "atualizadopor",
+  "aprovadopor", "rejeitadopor", "concluidopor", "viaturaatribuida",
+  "odometroretiradapor", "odometrodevolucaopor", "ifctvalidadopor",
+  "criadopor", "registradopor", "dataBaixa", "databaixa",
+  "datareativadoem", "criadoem", "atualizadoem", "ultimoLogin",
+  "datamissao", "retiradata", "devolucaodata",
+  "aprovadoem", "rejeitadoem", "concluidoem", "promotedat",
+  "odometroretiradaem", "odometrodevolucaoem", "partidaconfirmadaem",
+  "linkifctexpiraem", "ifctvalidadoem", "lastlogin",
+  "logincount", "datahora", "preenchidoem", "assinaturacriadoem",
+  "horarioapresentacao", "anofab", "kmrodados",
+]);
+
+function coerceValue(key: string, val: any): any {
+  if (val === null || val === undefined) return val;
+  // Se ja for number, mantem
+  if (typeof val === "number") return val;
+  // Se for string E o campo eh numerico, converter
+  if (typeof val === "string" && NUMERIC_FIELDS.has(key.toLowerCase())) {
+    const n = Number(val);
+    if (!isNaN(n)) return n;
+  }
+  return val;
+}
+
 function camelizeRow(row: any): any {
   if (!row || typeof row !== "object") return row;
   const result: any = {};
   for (const k of Object.keys(row)) {
-    result[camelizeKey(k)] = row[k];
+    const ck = camelizeKey(k);
+    result[ck] = coerceValue(ck, row[k]);
   }
   return result;
 }

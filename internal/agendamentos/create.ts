@@ -37,17 +37,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Tenta match por code
     const byCode = await sql`SELECT id FROM units WHERE code = ${body.unidadeRequerente} LIMIT 1`;
     if (byCode.rows[0]) {
-      unidadeRequerenteId = byCode.rows[0].id;
+      // FIX (William 2026-09-19): pg retorna id como string BIGINT, converter pra number
+      // pra que comparacoes como Array.includes() funcionem (string vs number da false)
+      unidadeRequerenteId = Number(byCode.rows[0].id);
     } else {
       // Tenta match por sigla
       const bySigla = await sql`SELECT id FROM units WHERE sigla = ${body.unidadeRequerente} LIMIT 1`;
       if (bySigla.rows[0]) {
-        unidadeRequerenteId = bySigla.rows[0].id;
+        unidadeRequerenteId = Number(bySigla.rows[0].id);
       } else {
         // Tenta match por nome
         const byName = await sql`SELECT id FROM units WHERE LOWER(name) = LOWER(${body.unidadeRequerente}) LIMIT 1`;
         if (byName.rows[0]) {
-          unidadeRequerenteId = byName.rows[0].id;
+          unidadeRequerenteId = Number(byName.rows[0].id);
         }
       }
     }
@@ -69,8 +71,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Valida cobertura: a unidade REQUERENTE deve ter pelo menos 1 gestor
   const isAdmin = user.viaturasRole === "admin" || user.isMaster === true || user.isMaster === 1;
   if (!isAdmin && unidadeRequerenteId) {
-    console.log("[debug] user:", JSON.stringify({ id: user.id, viaturasrole: user.viaturasRole, isMaster: user.isMaster }));
-    console.log("[debug] unidadeRequerenteId:", unidadeRequerenteId, "type:", typeof unidadeRequerenteId);
     // Busca gestores + admins
     const cobridoresRes = await sql`
       SELECT unidadesGestor FROM users
@@ -80,9 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let temGestor = false;
     for (const c of cobridoresRes.rows) {
       const ugs = parseJsonArray(c.unidadesGestor || c.unidadesgestor);
-      console.log("[debug] ugs type:", typeof ugs, "isArray:", Array.isArray(ugs), "values:", ugs.slice(0, 5), "typeof[0]:", typeof ugs[0]);
-      console.log("[debug] unidadeRequerenteId=", unidadeRequerenteId, "ugs.includes(", unidadeRequerenteId, "):", ugs.includes(unidadeRequerenteId));
-      if (ugs.includes(Number(unidadeRequerenteId))) { temGestor = true; break; }
+      if (ugs.includes(unidadeRequerenteId)) { temGestor = true; break; }
     }
     if (!temGestor) {
       // Tenta recursivamente (se a matriz cobre)
