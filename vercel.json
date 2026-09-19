@@ -4,9 +4,8 @@
   "framework": null,
   "outputDirectory": "frontend/dist",
   "functions": {
-    "api/**/*.ts": {
-      "maxDuration": 30,
-      "memory": 1024
+    "api/[...path].ts": {
+      "maxDuration": 30
     }
   },
   "rewrites": [

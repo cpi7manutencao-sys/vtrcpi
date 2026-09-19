@@ -19,6 +19,7 @@
     "@types/pdfkit": "^0.17.6",
     "@vercel/node": "^5.0.0",
     "@vercel/postgres": "^0.10.0",
+    "@types/nodemailer": "^6.4.16",
     "better-sqlite3": "^13.0.3",
     "cross-env": "^10.1.0",
     "google-auth-library": "^9.14.0",

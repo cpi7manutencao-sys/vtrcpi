@@ -4,6 +4,7 @@
 // Clone de convex/agendamentos.ts:listPendentes
 // ============================================================
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import list from "./list";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

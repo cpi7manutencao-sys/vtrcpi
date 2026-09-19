@@ -92,10 +92,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ${body.valor || null}, ${body.nl || null}, ${body.contaPatrimonial || null}, ${body.local || null},
         ${ts}, ${user.id}
       )
+      RETURNING id
     `;
-    // Pega o ID recem-inserido (SQLite: last_insert_rowid)
-    const idRes = await sql`SELECT last_insert_rowid() as id`;
-    const id = (idRes.rows[0] as any)?.id;
+    const id = (r.rows[0] as any)?.id;
     return res.status(200).json({ ok: true, id, created: true });
   }
 }

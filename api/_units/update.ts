@@ -5,7 +5,7 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../_lib/db";
+import { sql, query } from "../_lib/db";
 import { requireAuth } from "../_lib/auth";
 import { getUserById, getUserUnidadesAutorizadas, isMasterUser } from "../_lib/agendamentos-helpers";
 
