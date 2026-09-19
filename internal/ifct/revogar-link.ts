@@ -5,8 +5,8 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../../_lib/db";
-import { requireAuth, hasRole } from "../../_lib/auth";
+import { sql, now } from "../lib/db";
+import { requireAuth, hasRole } from "../lib/auth";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {

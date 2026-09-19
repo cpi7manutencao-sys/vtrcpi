@@ -14,7 +14,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { sql } from "../../_lib/db";
+import { sql } from "../lib/db";
 
 // FIX (William 2026-09-10 v51): registra doc.svg() no PROTOTIPO do PDFDocument
 // uma unica vez no startup do modulo. ANTES (v50), chamava SVGtoPDF(doc) que

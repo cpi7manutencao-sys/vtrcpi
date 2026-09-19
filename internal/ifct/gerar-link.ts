@@ -5,9 +5,9 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../../_lib/db";
-import { requireAuth, hasRole } from "../../_lib/auth";
-import { getUserById, getUserUnidadesAutorizadas } from "../../_lib/agendamentos-helpers";
+import { sql, now } from "../lib/db";
+import { requireAuth, hasRole } from "../lib/auth";
+import { getUserById, getUserUnidadesAutorizadas } from "../lib/agendamentos-helpers";
 
 const LINK_EXPIRA_DIAS = 7;
 const LINK_EXPIRA_MS = LINK_EXPIRA_DIAS * 24 * 60 * 60 * 1000;

@@ -11,11 +11,11 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../../_lib/db";
-import { requireAuth } from "../../_lib/auth";
-import { getUserById } from "../../_lib/agendamentos-helpers";
-import { sendEmail, isMailerConfigured } from "../../_lib/mailer";
-import { agendamentoAprovadoEmail } from "../../_lib/email-templates";
+import { sql, now } from "../lib/db";
+import { requireAuth } from "../lib/auth";
+import { getUserById } from "../lib/agendamentos-helpers";
+import { sendEmail, isMailerConfigured } from "../lib/mailer";
+import { agendamentoAprovadoEmail } from "../lib/email-templates";
 
 const LINK_EXPIRA_DIAS = 7;
 const LINK_EXPIRA_MS = LINK_EXPIRA_DIAS * 24 * 60 * 60 * 1000;

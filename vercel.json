@@ -1,18 +1,8 @@
 {
-  "buildCommand": "npm run build",
-  "installCommand": "npm install --prefix . && npm install --prefix frontend",
+  "buildCommand": "node tools/build-api.mjs && cd frontend && node ./node_modules/vite/bin/vite.js build",
+  "installCommand": "npm install --ignore-scripts",
   "framework": null,
-  "outputDirectory": "frontend/dist",
-  "functions": {
-    "api/index.ts": {
-      "maxDuration": 30,
-      "includeFiles": "internal/**"
-    }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
+  "outputDirectory": ".vercel/output",
   "headers": [
     {
       "source": "/(.*)",

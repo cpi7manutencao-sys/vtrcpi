@@ -6,9 +6,9 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../../_lib/db";
-import { requireAuth } from "../../_lib/auth";
-import { getUserById } from "../../_lib/agendamentos-helpers";
+import { sql, now } from "../lib/db";
+import { requireAuth } from "../lib/auth";
+import { getUserById } from "../lib/agendamentos-helpers";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {

@@ -9,11 +9,11 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../../_lib/db";
-import { requireAuth, hasRole } from "../../_lib/auth";
-import { getUserById, getUserUnidadesAutorizadas } from "../../_lib/agendamentos-helpers";
-import { sendEmail, isMailerConfigured } from "../../_lib/mailer";
-import { ictRejeitadoEmail } from "../../_lib/email-templates";
+import { sql, now } from "../lib/db";
+import { requireAuth, hasRole } from "../lib/auth";
+import { getUserById, getUserUnidadesAutorizadas } from "../lib/agendamentos-helpers";
+import { sendEmail, isMailerConfigured } from "../lib/mailer";
+import { ictRejeitadoEmail } from "../lib/email-templates";
 
 function formatDateBR(ts: number | string | null | undefined): string {
   if (!ts) return "";

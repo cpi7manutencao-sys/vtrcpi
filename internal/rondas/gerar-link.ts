@@ -5,9 +5,9 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../../_lib/db";
-import { requireAuth, hasRole } from "../../_lib/auth";
-import { getUserById, getUserUnidadesAutorizadas } from "../../_lib/agendamentos-helpers";
+import { sql, now } from "../lib/db";
+import { requireAuth, hasRole } from "../lib/auth";
+import { getUserById, getUserUnidadesAutorizadas } from "../lib/agendamentos-helpers";
 
 function gerarUuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {

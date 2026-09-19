@@ -6,9 +6,9 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql } from "../../_lib/db";
-import { requireAuth, hasRole } from "../../_lib/auth";
-import { audit } from "../../_lib/audit";
+import { sql } from "../lib/db";
+import { requireAuth, hasRole } from "../lib/auth";
+import { audit } from "../lib/audit";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {

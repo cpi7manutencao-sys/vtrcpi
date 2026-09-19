@@ -5,9 +5,9 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, query } from "../../_lib/db";
-import { requireAuth } from "../../_lib/auth";
-import { getUserUnidadesAutorizadas, getUserFromCpf } from "../../_lib/agendamentos-helpers";
+import { sql, query } from "../lib/db";
+import { requireAuth } from "../lib/auth";
+import { getUserUnidadesAutorizadas, getUserFromCpf } from "../lib/agendamentos-helpers";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {

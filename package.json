@@ -10,16 +10,16 @@
     "setup": "powershell -ExecutionPolicy Bypass -File ./setup-local.ps1",
     "reset": "powershell -ExecutionPolicy Bypass -File ./reset-local.ps1",
     "set-google": "powershell -ExecutionPolicy Bypass -File ./set-google-id.ps1",
-    "build": "cd frontend && node ./node_modules/vite/bin/vite.js build",
+    "build": "node tools/build-api.mjs && cd frontend && node ./node_modules/vite/bin/vite.js build",
     "deploy": "vercel --prod"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.13",
     "@types/better-sqlite3": "^9.6.0",
+    "@types/nodemailer": "^6.4.16",
     "@types/pdfkit": "^0.17.6",
     "@vercel/node": "^5.0.0",
     "@vercel/postgres": "^0.10.0",
-    "@types/nodemailer": "^6.4.16",
     "better-sqlite3": "^13.0.3",
     "cross-env": "^10.1.0",
     "google-auth-library": "^9.14.0",
@@ -31,6 +31,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "dotenv": "^16.4.0",
+    "esbuild": "^0.21.5",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0"
   }

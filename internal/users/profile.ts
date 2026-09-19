@@ -7,10 +7,10 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../../_lib/db";
-import { requireAuth } from "../../_lib/auth";
-import { signSession } from "../../_lib/jwt";
-import { audit } from "../../_lib/audit";
+import { sql, now } from "../lib/db";
+import { requireAuth } from "../lib/auth";
+import { signSession } from "../lib/jwt";
+import { audit } from "../lib/audit";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {

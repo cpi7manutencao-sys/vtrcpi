@@ -6,10 +6,10 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../../_lib/db";
-import { exchangeCode, verifyGoogleToken } from "../../_lib/google";
-import { signSession } from "../../_lib/jwt";
-import { audit } from "../../_lib/audit";
+import { sql, now } from "../../lib/db";
+import { exchangeCode, verifyGoogleToken } from "../../lib/google";
+import { signSession } from "../../lib/jwt";
+import { audit } from "../../lib/audit";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 
