@@ -4,26 +4,24 @@
 // API unificada: query(text, params) -> { rows: [...] }
 //
 // IMPORTANTE: Em Vercel Serverless, modulos nativos (better-sqlite3)
-// NAO funcionam. Por isso usamos createRequire + try/catch pra
-// carregar SOB DEMANDA.
+// NAO funcionam. Por isso usamos safeRequire que retorna null
+// se nao conseguir carregar.
 // ============================================================
 
-import { createRequire } from "node:module";
-const require_ = createRequire(import.meta.url);
-
-// Carrega modulo nativo sob demanda; retorna null se nao existir
-function safeRequire(name: string): any {
-  try {
-    return require_(name);
-  } catch (e: any) {
-    console.warn(`[db] ${name} nao disponivel:`, e.message);
-    return null;
-  }
-}
+import { safeRequire } from "./safe-load";
 
 let sqliteDb: any = null;
 let pgliteInstance: any = null;
 let pgliteReady: Promise<void> | null = null;
+
+// Carrega modulo nativo sob demanda; retorna null se nao existir
+function _safeRequire(name: string): any {
+  const mod = safeRequire(name);
+  if (!mod) {
+    console.warn(`[db] ${name} nao disponivel`);
+  }
+  return mod;
+}
 
 // Detecta modo
 const POSTGRES_URL = process.env.POSTGRES_URL || "";
@@ -38,7 +36,7 @@ const useSqlite =
 
 function getSqlite() {
   if (sqliteDb) return sqliteDb;
-  const Database = safeRequire("better-sqlite3");
+  const Database = _safeRequire("better-sqlite3");
   if (!Database) {
     throw new Error("better-sqlite3 nao disponivel. Em prod, configure POSTGRES_URL.");
   }
@@ -54,7 +52,7 @@ function getSqlite() {
 
 function getPGliteDb() {
   if (pgliteInstance) return pgliteInstance;
-  const PGliteMod = safeRequire("@electric-sql/pglite");
+  const PGliteMod = _safeRequire("@electric-sql/pglite");
   if (!PGliteMod) {
     throw new Error("@electric-sql/pglite nao disponivel.");
   }
@@ -130,39 +128,44 @@ let schemaInitialized = false;
 export async function ensureSchema(): Promise<void> {
   if (usePostgres) return;
   if (!useSqlite && !usePGlite) return;
-  const fs = require_("fs/promises");
-  const path = require_("path");
-  const candidates = [
-    path.join(process.cwd(), "schema.sqlite.sql"),
-    path.join(process.cwd(), "..", "schema.sqlite.sql"),
-    path.join(process.cwd(), "..", "..", "schema.sqlite.sql"),
-  ];
-  let schema: string | null = null;
-  for (const c of candidates) {
-    try {
-      schema = await fs.readFile(c, "utf-8");
-      break;
-    } catch {}
-  }
-  if (!schema) {
-    console.warn("[db] schema.sqlite.sql nao encontrado");
-    return;
-  }
   try {
-    if (useSqlite) {
-      const db = getSqlite();
-      db.exec(schema);
-      schemaInitialized = true;
-      console.log("[db] Schema SQLite inicializado");
-    } else if (usePGlite) {
-      await ensurePGlite();
-      const db = getPGliteDb();
-      await db.exec(schema);
-      schemaInitialized = true;
-      console.log("[db] Schema PGlite inicializado");
+    const fs = safeRequire("fs/promises") as any;
+    const path = safeRequire("path") as any;
+    if (!fs || !path) return;
+    const candidates = [
+      path.join(process.cwd(), "schema.sqlite.sql"),
+      path.join(process.cwd(), "..", "schema.sqlite.sql"),
+      path.join(process.cwd(), "..", "..", "schema.sqlite.sql"),
+    ];
+    let schema: string | null = null;
+    for (const c of candidates) {
+      try {
+        schema = await fs.readFile(c, "utf-8");
+        break;
+      } catch {}
+    }
+    if (!schema) {
+      console.warn("[db] schema.sqlite.sql nao encontrado");
+      return;
+    }
+    try {
+      if (useSqlite) {
+        const db = getSqlite();
+        db.exec(schema);
+        schemaInitialized = true;
+        console.log("[db] Schema SQLite inicializado");
+      } else if (usePGlite) {
+        await ensurePGlite();
+        const db = getPGliteDb();
+        await db.exec(schema);
+        schemaInitialized = true;
+        console.log("[db] Schema PGlite inicializado");
+      }
+    } catch (e: any) {
+      console.error("[db] Erro ao rodar schema:", e.message);
     }
   } catch (e: any) {
-    console.error("[db] Erro ao rodar schema:", e.message);
+    console.error("[db] ensureSchema erro:", e.message);
   }
 }
 

@@ -5,18 +5,14 @@
 // Logs detalhados pra debug (sucesso OU erro).
 //
 // IMPORTANTE: nodemailer nao funciona em Vercel Serverless sem config
-// adicional de host (precisa de SMTP externo). Por isso usamos dynamic
-// import via safeRequire.
+// adicional. Em prod (Vercel), email e mockado.
 // ============================================================
 
-import { createRequire } from "node:module";
-const require_ = createRequire(import.meta.url);
+import { safeRequire } from "./safe-load";
 
-let nodemailer: any = null;
-try {
-  nodemailer = require_("nodemailer");
-} catch (e: any) {
-  console.warn("[mailer] nodemailer nao disponivel:", e.message);
+const nodemailer = safeRequire("nodemailer");
+if (!nodemailer) {
+  console.warn("[mailer] nodemailer nao disponivel (Vercel/Serverless)");
 }
 
 let transporter: any = null;
