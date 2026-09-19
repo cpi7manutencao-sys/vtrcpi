@@ -1,7 +1,7 @@
 // ============================================================
-// api/index.ts - Router UNICO para Vercel Hobby Plan
+// tools/api-entry.ts - Router UNICO para Vercel Hobby Plan
 // Bundle por tools/build-api.mjs (esbuild) em .vercel/output/
-// NAO deployado como function (Vercel usa o Build Output API).
+// Movido pra tools/ pra Vercel NAO detectar como entry point tradicional
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";

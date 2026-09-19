@@ -24,7 +24,7 @@ cpSync(join(projectRoot, "frontend", "dist"), join(outBase, "static"), { recursi
 // 2. Bundle api/index.ts -> .vercel/output/functions/api/index.func/index.js
 console.log("[build-api] Bundling api/index.ts...");
 await build({
-  entryPoints: [join(projectRoot, "api", "index.ts")],
+  entryPoints: [join(projectRoot, "tools", "api-entry.ts")],
   bundle: true,
   platform: "node",
   target: "node20",
