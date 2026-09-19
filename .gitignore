@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.vercel/
+.turbo/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# PGlite local data
+.pgdata/
+*.pgdata
+*.pglite
+
+# SQLite local (dev only)
+*.db
+*.db-shm
+*.db-wal
+viaturas.db*
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Vite
+*.local
+
+# Vercel build outputs
+.vercel
+
+# Convex legacy (NÃO é mais usado - migrado pra Vercel Postgres)
+convex/
+convex-*.tgz
+convex-node_modules.tar.gz
+esbuild-linux-x64-*.tgz
+_generated/
+
+# Servidor PM antigo (não vai pra Vercel)
+server-config/
+server-local.mjs
+schema.sqlite.sql
+
+# Scripts debug (NÃO usados em produção - quase tudo é debug legado do Convex)
+scripts/*.py
+!scripts/build-api-functions.mjs
+!scripts/build-vercel-output.cjs
+!scripts/build-vercel-output.sh
+
+# Backups locais
+backup/
+*.bak
+*~
+logs/
+
+# Temp
+temp_*/
+.ronda-tmp/
