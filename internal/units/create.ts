@@ -5,7 +5,7 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql } from "../lib/db";
+import { sql, lastInsertId } from "../lib/db";
 import { requireAuth } from "../lib/auth";
 import { getUserById, getUserUnidadesAutorizadas, isMasterUser } from "../lib/agendamentos-helpers";
 
@@ -57,9 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const r = await sql`INSERT INTO units (code, name, sigla, parentUnit, commandUnit, active)
     VALUES (${codeClean}, ${body.name.trim()}, ${body.sigla?.trim() || null}, ${body.parentUnit || null}, ${body.commandUnit || null}, 1)`;
-  const idRes = await sql`SELECT last_insert_rowid() as id`;
-  const id = (idRes.rows[0] as any)?.id;
-
+  const id = await lastInsertId('units');
   return res.status(200).json({ ok: true, id, code: codeClean, name: body.name });
 }
 

@@ -5,7 +5,7 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../lib/db";
+import { sql, now, lastInsertId } from "../lib/db";
 import { requireAuth } from "../lib/auth";
 import { getUserById, getUserUnit, requireViaturasRole } from "../lib/agendamentos-helpers";
 
@@ -126,9 +126,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     )
   `;
 
-  // Pega o ID recem-inserido (SQLite: last_insert_rowid)
-  const idRes = await sql`SELECT last_insert_rowid() as id`;
-  const newId = (idRes.rows[0] as any)?.id;
+  // Pega o ID recem-inserido (Postgres: currval; SQLite: last_insert_rowid)
+  const newId = await lastInsertId('agendamentos');
 
   return res.status(200).json({ ok: true, id: newId, _id: String(newId) });
 }

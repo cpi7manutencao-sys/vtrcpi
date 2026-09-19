@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../lib/db";
+import { sql, now, lastInsertId } from "../lib/db";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -47,8 +47,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ${posto || null}, ${fotoComprovante || null}, ${observacao || null}, ${ts}
     )
   `;
-  const idRes = await sql`SELECT last_insert_rowid() as id`;
-  const newId = (idRes.rows[0] as any)?.id;
-
+  const newId = await lastInsertId('ifctAbastecimentos');
   return res.status(200).json({ ok: true, id: newId });
 }

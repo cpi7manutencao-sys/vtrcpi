@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../lib/db";
+import { sql, now, lastInsertId } from "../lib/db";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -39,6 +39,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     INSERT INTO rondas (viaturaId, agendamentoId, rondadoPor, textoLivre, posto, nomeGuerra, unidadePertence, assinaturaSvg, re, digre, preenchidoEm, ipOrigem, userAgentOrigem)
     VALUES (${ag.viaturaAtribuida}, ${ag.id}, ${rondadoPor.trim()}, ${textoLivre.trim()}, ${posto?.trim() || null}, ${nomeGuerra?.trim() || null}, ${unidadePertence?.trim() || null}, ${assinaturaSvg || null}, ${re?.trim() || null}, ${digre?.trim() || null}, ${now()}, ${ipOrigem}, ${userAgent})
   `;
-  const idRes = await sql`SELECT last_insert_rowid() as id`;
-  return res.status(200).json({ ok: true, rondaId: (idRes.rows[0] as any)?.id });
+  const newId = await lastInsertId('rondas');
+  return res.status(200).json({ ok: true, rondaId: newId });
 }

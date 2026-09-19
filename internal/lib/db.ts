@@ -418,6 +418,31 @@ export async function sql(strings: TemplateStringsArray, ...values: any[]): Prom
   return query(text, params);
 }
 
+/**
+ * Pega o ultimo ID inserido (BIGSERIAL).
+ * SQLite: last_insert_rowid()
+ * Postgres: currval(pg_get_serial_sequence(...))
+ */
+export async function lastInsertId(tableName: string): Promise<number | null> {
+  if (usePostgres) {
+    const pool = getPgPool();
+    const r = await pool.query<{ id: number }>(
+      `SELECT currval(pg_get_serial_sequence($1, 'id')) as id`,
+      [tableName]
+    );
+    return r.rows[0]?.id != null ? Number(r.rows[0].id) : null;
+  }
+  if (usePGlite) {
+    await ensurePGlite();
+    const db = getPGliteDb();
+    const r = await db.query<{ id: number }>("SELECT last_insert_rowid() as id");
+    return r.rows[0]?.id != null ? Number(r.rows[0].id) : null;
+  }
+  const db = getSqlite();
+  const r = db.prepare("SELECT last_insert_rowid() as id").get() as any;
+  return r?.id != null ? Number(r.id) : null;
+}
+
 export async function exec(text: string): Promise<void> {
   if (usePostgres) {
     const pool = getPgPool();
