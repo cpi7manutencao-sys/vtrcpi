@@ -5,7 +5,8 @@
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "api/_lib/**,api/_handlers/**,api/_auth/**,api/_users/**,api/_units/**,api/_agendamentos/**,api/_dashboard/**,api/_ifct/**,api/_rondas/**,api/_viaturas/**,api/_viatura-historico/**"
     }
   },
   "rewrites": [
