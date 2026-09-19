@@ -65,7 +65,7 @@ const vcConfig = {
   runtime: "nodejs20.x",
   handler: "index.js",
   launcherType: "Nodejs",
-  shouldAddHelpers: false
+  shouldAddHelpers: true
 };
 writeFileSync(
   join(outBase, "functions", "api", "index.func", ".vc-config.json"),
