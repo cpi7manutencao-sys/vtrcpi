@@ -123,8 +123,122 @@ function toSqlitePlaceholders(sql: string): string {
   return sql.replace(/\$\d+/g, "?");
 }
 
-// Build marker - confirma que o bundle novo estah rodando
-const DB_BUILD = "v2026-09-19-03-39-camelize-fix";
+/**
+ * Mapeamento lowercase -> camelCase pra colunas conhecidas.
+ * O `pg` retorna nomes de coluna em LOWERCASE, mas o codigo
+ * espera camelCase. Como snake_case -> camelCase via regex nao
+ * funciona (ex: "warname" -> "warName"), precisamos de um map.
+ *
+ * Manter sincronizado com schema-postgres.sql.
+ * Gerado a partir do schema em 2026-09-19.
+ */
+const COLUMN_CAMEL_MAP: Record<string, string> = {
+  // ========== units ==========
+  parentunit: "parentUnit",
+  commandunit: "commandUnit",
+
+  // ========== users ==========
+  warname: "warName",
+  postograduacao: "postoGraduacao",
+  viaturasrole: "viaturasRole",
+  ismaster: "isMaster",
+  opmcode: "opmCode",
+  googleid: "googleId",
+  unidadesgestor: "unidadesGestor",
+  unidadeseditor: "unidadesEditor",
+  lastlogin: "lastLogin",
+  logincount: "loginCount",
+  createdat: "createdAt",
+  promotedat: "promotedAt",
+  datanascimento: "dataNascimento",
+  assinaturadigitalsvg: "assinaturaDigitalSvg",
+  assinaturadigitalcriadoem: "assinaturaDigitalCriadoEm",
+
+  // ========== viaturas ==========
+  marcamodelo: "marcaModelo",
+  emdescarga: "emDescarga",
+  linkronda: "linkRonda",
+  databaixa: "dataBaixa",
+  datareativadoem: "dataReativadoEm",
+  cadconv: "cadConv",
+  anofab: "anoFab",
+  contapatrimonial: "contaPatrimonial",
+  criadoem: "criadoEm",
+  criadopor: "criadoPor",
+  atualizadoem: "atualizadoEm",
+  atualizadopor: "atualizadoPor",
+
+  // ========== viaturaHistorico ==========
+  viaturaid: "viaturaId",
+  datahora: "dataHora",
+  registradopor: "registradoPor",
+
+  // ========== agendamentos ==========
+  nomeguerra: "nomeGuerra",
+  unidaderequerente: "unidadeRequerente",
+  unidaderequerenteoutro: "unidadeRequerenteOutro",
+  unidadeorigem: "unidadeOrigem",
+  secaosetor: "secaoSetor",
+  tipoviaturasolicitada: "tipoViaturaSolicitada",
+  tipoviaturaoutro: "tipoViaturaOutro",
+  datamissao: "dataMissao",
+  oficialautorizador: "oficialAutorizador",
+  horarioapresentacao: "horarioApresentacao",
+  solicitantemotorista: "solicitanteMotorista",
+  motoristare: "motoristaRe",
+  motoristaposto: "motoristaPosto",
+  motoristanome: "motoristaNome",
+  motoristaopm: "motoristaOpm",
+  motoristaopmcode: "motoristaOpmCode",
+  motoristacnh: "motoristaCnh",
+  motoristaboletim: "motoristaBoletim",
+  motoristadataprova: "motoristaDataProva",
+  motoristapublicacoes: "motoristaPublicacoes",
+  retiradadata: "retiradaData",
+  retiradahora: "retiradaHora",
+  devolucaodata: "devolucaoData",
+  devolucaohora: "devolucaoHora",
+  aprovadopor: "aprovadoPor",
+  aprovadoem: "aprovadoEm",
+  rejeitadopor: "rejeitadoPor",
+  rejeitadoem: "rejeitadoEm",
+  motivorejeicao: "motivoRejeicao",
+  concluidopor: "concluidoPor",
+  concluidoem: "concluidoEm",
+  naocompareceu: "naoCompareceu",
+  viaturaatribuida: "viaturaAtribuida",
+  odometroretirada: "odometroRetirada",
+  odometroretiradaem: "odometroRetiradaEm",
+  odometroretiradapor: "odometroRetiradaPor",
+  odometrodevolucao: "odometroDevolucao",
+  odometrodevolucaoem: "odometroDevolucaoEm",
+  odometrodevolucaopor: "odometroDevolucaoPor",
+  kmrodados: "kmRodados",
+  odometroeditado: "odometroEditado",
+  linkifct: "linkIfct",
+  linkifctexpiraem: "linkIfctExpiraEm",
+  ifctstatus: "ifctStatus",
+  ifctdata: "ifctData",
+  ifctvalidadopor: "ifctValidadoPor",
+  ifctvalidadoem: "ifctValidadoEm",
+  ifctvalidadoobservacao: "ifctValidadoObservacao",
+
+  // ========== rondas ==========
+  rondadopor: "rondadoPor",
+  textolivre: "textoLivre",
+  unidadepertence: "unidadePertence",
+  assinaturasvg: "assinaturaSvg",
+  preenchidoem: "preenchidoEm",
+  iporigem: "ipOrigem",
+  useragenterigem: "userAgentOrigem",
+
+  // ========== auditLog ==========
+  // campos genericos ja cobertos (userId, cpf, action, etc)
+};
+
+function camelizeKey(key: string): string {
+  return COLUMN_CAMEL_MAP[key.toLowerCase()] || key;
+}
 
 /**
  * Converte placeholders `?` (estilo SQLite/pg) em `$1, $2, ...` (Postgres).
