@@ -1,116 +1,174 @@
 // ============================================================
-// api/[...path].ts - Router UNICO para Vercel Hobby Plan
+// api/index.ts - Router UNICO para Vercel Hobby Plan
 // Vercel Hobby limita em 12 serverless functions. Pra respeitar
 // o limite, juntamos TODOS os endpoints em 1 function que faz
 // dispatch interno pelo path da requisição.
 //
-// Formato:
-//   GET/POST /api/health -> _handlers/health.ts
-//   POST /api/agendamentos/approve -> _agendamentos/approve.ts
-//   GET /api/users/list -> _users/list.ts
-//   etc.
+// Todos os imports sao ESTATICOS pra que o esbuild inline tudo
+// em um unico bundle. Import() dinâmico nao funciona porque
+// os modulos viram inline e nao tem arquivo real no runtime.
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-// Mapa path -> carregador (lazy import pra evitar carregar tudo em toda request)
-type HandlerModule = { default: (req: VercelRequest, res: VercelResponse) => Promise<any> | any };
+// Imports ESTATICOS (esbuild inline tudo num unico bundle)
+import * as health from "../internal/handlers/health";
+import * as authStart from "../internal/auth/google/start";
+import * as authCallback from "../internal/auth/google/callback";
+import * as authMe from "../internal/auth/me";
+import * as authRefresh from "../internal/auth/refresh";
 
-const routes: Record<string, () => Promise<HandlerModule>> = {
-  "/api/health": () => import("../internal/handlers/health"),
+import * as usersApprove from "../internal/users/approve";
+import * as usersBuscaPorRe from "../internal/users/busca-por-re";
+import * as usersList from "../internal/users/list";
+import * as usersPending from "../internal/users/pending";
+import * as usersProfile from "../internal/users/profile";
+import * as usersPromote from "../internal/users/promote";
+import * as usersReject from "../internal/users/reject";
 
-  "/api/auth/google/start": () => import("../internal/auth/google/start"),
-  "/api/auth/google/callback": () => import("../internal/auth/google/callback"),
-  "/api/auth/me": () => import("../internal/auth/me"),
-  "/api/auth/refresh": () => import("../internal/auth/refresh"),
+import * as unitsCreate from "../internal/units/create";
+import * as unitsGetByCode from "../internal/units/get-by-code";
+import * as unitsList from "../internal/units/list";
+import * as unitsListHierarchical from "../internal/units/list-hierarchical";
+import * as unitsUpdate from "../internal/units/update";
+import * as unitsUpsert from "../internal/units/upsert";
 
-  "/api/users/approve": () => import("../internal/users/approve"),
-  "/api/users/busca-por-re": () => import("../internal/users/busca-por-re"),
-  "/api/users/list": () => import("../internal/users/list"),
-  "/api/users/pending": () => import("../internal/users/pending"),
-  "/api/users/profile": () => import("../internal/users/profile"),
-  "/api/users/promote": () => import("../internal/users/promote"),
-  "/api/users/reject": () => import("../internal/users/reject"),
+import * as agApprove from "../internal/agendamentos/approve";
+import * as agAtribuir from "../internal/agendamentos/atribuir";
+import * as agAtualizarMotorista from "../internal/agendamentos/atualizar-motorista";
+import * as agCancel from "../internal/agendamentos/cancel";
+import * as agConcluir from "../internal/agendamentos/concluir";
+import * as agCreate from "../internal/agendamentos/create";
+import * as agEditarOdometro from "../internal/agendamentos/editar-odometro";
+import * as agExcluir from "../internal/agendamentos/excluir";
+import * as agGet from "../internal/agendamentos/get";
+import * as agGetUltimoOdometro from "../internal/agendamentos/get-ultimo-odometro";
+import * as agList from "../internal/agendamentos/list";
+import * as agListPendentes from "../internal/agendamentos/list-pendentes";
+import * as agListPorMes from "../internal/agendamentos/list-por-mes";
+import * as agReject from "../internal/agendamentos/reject";
 
-  "/api/units/create": () => import("../internal/units/create"),
-  "/api/units/get-by-code": () => import("../internal/units/get-by-code"),
-  "/api/units/list": () => import("../internal/units/list"),
-  "/api/units/list-hierarchical": () => import("../internal/units/list-hierarchical"),
-  "/api/units/update": () => import("../internal/units/update"),
-  "/api/units/upsert": () => import("../internal/units/upsert"),
+import * as dashEvolucaoMensal from "../internal/dashboard/evolucao-mensal";
+import * as dashGetHomeStats from "../internal/dashboard/get-home-stats";
+import * as dashGetTotais from "../internal/dashboard/get-totais";
 
-  "/api/agendamentos/approve": () => import("../internal/agendamentos/approve"),
-  "/api/agendamentos/atribuir": () => import("../internal/agendamentos/atribuir"),
-  "/api/agendamentos/atualizar-motorista": () => import("../internal/agendamentos/atualizar-motorista"),
-  "/api/agendamentos/cancel": () => import("../internal/agendamentos/cancel"),
-  "/api/agendamentos/concluir": () => import("../internal/agendamentos/concluir"),
-  "/api/agendamentos/create": () => import("../internal/agendamentos/create"),
-  "/api/agendamentos/editar-odometro": () => import("../internal/agendamentos/editar-odometro"),
-  "/api/agendamentos/excluir": () => import("../internal/agendamentos/excluir"),
-  "/api/agendamentos/get": () => import("../internal/agendamentos/get"),
-  "/api/agendamentos/get-ultimo-odometro": () => import("../internal/agendamentos/get-ultimo-odometro"),
-  "/api/agendamentos/list": () => import("../internal/agendamentos/list"),
-  "/api/agendamentos/list-pendentes": () => import("../internal/agendamentos/list-pendentes"),
-  "/api/agendamentos/list-por-mes": () => import("../internal/agendamentos/list-por-mes"),
-  "/api/agendamentos/reject": () => import("../internal/agendamentos/reject"),
+import * as ifctAbastecimento from "../internal/ifct/abastecimento";
+import * as ifctEncerramento from "../internal/ifct/encerramento";
+import * as ifctFinalizar from "../internal/ifct/finalizar";
+import * as ifctGerarLink from "../internal/ifct/gerar-link";
+import * as ifctGetByToken from "../internal/ifct/get-by-token";
+import * as ifctListarAbastecimentos from "../internal/ifct/listar-abastecimentos";
+import * as ifctPdf from "../internal/ifct/pdf";
+import * as ifctRevogarLink from "../internal/ifct/revogar-link";
+import * as ifctSalvarMotorista from "../internal/ifct/salvar-motorista";
+import * as ifctSugestaoKmPartida from "../internal/ifct/sugestao-km-partida";
+import * as ifctValidar from "../internal/ifct/validar";
 
-  "/api/dashboard/evolucao-mensal": () => import("../internal/dashboard/evolucao-mensal"),
-  "/api/dashboard/get-home-stats": () => import("../internal/dashboard/get-home-stats"),
-  "/api/dashboard/get-totais": () => import("../internal/dashboard/get-totais"),
+import * as rondasGerarLink from "../internal/rondas/gerar-link";
+import * as rondasGetByToken from "../internal/rondas/get-by-token";
+import * as rondasListByViatura from "../internal/rondas/list-by-viatura";
+import * as rondasSalvar from "../internal/rondas/salvar";
+import * as rondasSalvarPorIfct from "../internal/rondas/salvar-por-ifct";
 
-  "/api/ifct/abastecimento": () => import("../internal/ifct/abastecimento"),
-  "/api/ifct/encerramento": () => import("../internal/ifct/encerramento"),
-  "/api/ifct/finalizar": () => import("../internal/ifct/finalizar"),
-  "/api/ifct/gerar-link": () => import("../internal/ifct/gerar-link"),
-  "/api/ifct/get-by-token": () => import("../internal/ifct/get-by-token"),
-  "/api/ifct/listar-abastecimentos": () => import("../internal/ifct/listar-abastecimentos"),
-  "/api/ifct/pdf": () => import("../internal/ifct/pdf"),
-  "/api/ifct/revogar-link": () => import("../internal/ifct/revogar-link"),
-  "/api/ifct/salvar-motorista": () => import("../internal/ifct/salvar-motorista"),
-  "/api/ifct/sugestao-km-partida": () => import("../internal/ifct/sugestao-km-partida"),
-  "/api/ifct/validar": () => import("../internal/ifct/validar"),
+import * as vtrColocarDescarga from "../internal/viaturas/colocar-em-descarga";
+import * as vtrGet from "../internal/viaturas/get";
+import * as vtrList from "../internal/viaturas/list";
+import * as vtrListByDescarga from "../internal/viaturas/list-by-descarga";
+import * as vtrReativar from "../internal/viaturas/reativar";
+import * as vtrToggleAtivo from "../internal/viaturas/toggle-ativo";
+import * as vtrUpsert from "../internal/viaturas/upsert";
 
-  "/api/rondas/gerar-link": () => import("../internal/rondas/gerar-link"),
-  "/api/rondas/get-by-token": () => import("../internal/rondas/get-by-token"),
-  "/api/rondas/list-by-viatura": () => import("../internal/rondas/list-by-viatura"),
-  "/api/rondas/salvar": () => import("../internal/rondas/salvar"),
-  "/api/rondas/salvar-por-ifct": () => import("../internal/rondas/salvar-por-ifct"),
+import * as vtrHistList from "../internal/viatura-historico/list-by-viatura";
 
-  "/api/viaturas/colocar-em-descarga": () => import("../internal/viaturas/colocar-em-descarga"),
-  "/api/viaturas/get": () => import("../internal/viaturas/get"),
-  "/api/viaturas/list": () => import("../internal/viaturas/list"),
-  "/api/viaturas/list-by-descarga": () => import("../internal/viaturas/list-by-descarga"),
-  "/api/viaturas/reativar": () => import("../internal/viaturas/reativar"),
-  "/api/viaturas/toggle-ativo": () => import("../internal/viaturas/toggle-ativo"),
-  "/api/viaturas/upsert": () => import("../internal/viaturas/upsert"),
+// Mapa path -> handler (default export do modulo)
+type Handler = (req: VercelRequest, res: VercelResponse) => Promise<any> | any;
+type HandlerModule = { default: Handler };
 
-  "/api/viatura-historico/list-by-viatura": () => import("../internal/viatura-historico/list-by-viatura"),
+const routes: Record<string, HandlerModule> = {
+  "/api/health": health as HandlerModule,
+  "/api/auth/google/start": authStart as HandlerModule,
+  "/api/auth/google/callback": authCallback as HandlerModule,
+  "/api/auth/me": authMe as HandlerModule,
+  "/api/auth/refresh": authRefresh as HandlerModule,
+
+  "/api/users/approve": usersApprove as HandlerModule,
+  "/api/users/busca-por-re": usersBuscaPorRe as HandlerModule,
+  "/api/users/list": usersList as HandlerModule,
+  "/api/users/pending": usersPending as HandlerModule,
+  "/api/users/profile": usersProfile as HandlerModule,
+  "/api/users/promote": usersPromote as HandlerModule,
+  "/api/users/reject": usersReject as HandlerModule,
+
+  "/api/units/create": unitsCreate as HandlerModule,
+  "/api/units/get-by-code": unitsGetByCode as HandlerModule,
+  "/api/units/list": unitsList as HandlerModule,
+  "/api/units/list-hierarchical": unitsListHierarchical as HandlerModule,
+  "/api/units/update": unitsUpdate as HandlerModule,
+  "/api/units/upsert": unitsUpsert as HandlerModule,
+
+  "/api/agendamentos/approve": agApprove as HandlerModule,
+  "/api/agendamentos/atribuir": agAtribuir as HandlerModule,
+  "/api/agendamentos/atualizar-motorista": agAtualizarMotorista as HandlerModule,
+  "/api/agendamentos/cancel": agCancel as HandlerModule,
+  "/api/agendamentos/concluir": agConcluir as HandlerModule,
+  "/api/agendamentos/create": agCreate as HandlerModule,
+  "/api/agendamentos/editar-odometro": agEditarOdometro as HandlerModule,
+  "/api/agendamentos/excluir": agExcluir as HandlerModule,
+  "/api/agendamentos/get": agGet as HandlerModule,
+  "/api/agendamentos/get-ultimo-odometro": agGetUltimoOdometro as HandlerModule,
+  "/api/agendamentos/list": agList as HandlerModule,
+  "/api/agendamentos/list-pendentes": agListPendentes as HandlerModule,
+  "/api/agendamentos/list-por-mes": agListPorMes as HandlerModule,
+  "/api/agendamentos/reject": agReject as HandlerModule,
+
+  "/api/dashboard/evolucao-mensal": dashEvolucaoMensal as HandlerModule,
+  "/api/dashboard/get-home-stats": dashGetHomeStats as HandlerModule,
+  "/api/dashboard/get-totais": dashGetTotais as HandlerModule,
+
+  "/api/ifct/abastecimento": ifctAbastecimento as HandlerModule,
+  "/api/ifct/encerramento": ifctEncerramento as HandlerModule,
+  "/api/ifct/finalizar": ifctFinalizar as HandlerModule,
+  "/api/ifct/gerar-link": ifctGerarLink as HandlerModule,
+  "/api/ifct/get-by-token": ifctGetByToken as HandlerModule,
+  "/api/ifct/listar-abastecimentos": ifctListarAbastecimentos as HandlerModule,
+  "/api/ifct/pdf": ifctPdf as HandlerModule,
+  "/api/ifct/revogar-link": ifctRevogarLink as HandlerModule,
+  "/api/ifct/salvar-motorista": ifctSalvarMotorista as HandlerModule,
+  "/api/ifct/sugestao-km-partida": ifctSugestaoKmPartida as HandlerModule,
+  "/api/ifct/validar": ifctValidar as HandlerModule,
+
+  "/api/rondas/gerar-link": rondasGerarLink as HandlerModule,
+  "/api/rondas/get-by-token": rondasGetByToken as HandlerModule,
+  "/api/rondas/list-by-viatura": rondasListByViatura as HandlerModule,
+  "/api/rondas/salvar": rondasSalvar as HandlerModule,
+  "/api/rondas/salvar-por-ifct": rondasSalvarPorIfct as HandlerModule,
+
+  "/api/viaturas/colocar-em-descarga": vtrColocarDescarga as HandlerModule,
+  "/api/viaturas/get": vtrGet as HandlerModule,
+  "/api/viaturas/list": vtrList as HandlerModule,
+  "/api/viaturas/list-by-descarga": vtrListByDescarga as HandlerModule,
+  "/api/viaturas/reativar": vtrReativar as HandlerModule,
+  "/api/viaturas/toggle-ativo": vtrToggleAtivo as HandlerModule,
+  "/api/viaturas/upsert": vtrUpsert as HandlerModule,
+
+  "/api/viatura-historico/list-by-viatura": vtrHistList as HandlerModule,
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // O path chega como /api/foo/bar
-  // Pega só o pathname (sem query string)
   const url = req.url || "";
   const path = url.split("?")[0];
 
-  const loader = routes[path];
+  const mod = routes[path];
 
-  if (!loader) {
+  if (!mod) {
     res.status(404).json({ ok: false, error: `Route not found: ${path}` });
     return;
   }
 
-  try {
-    const mod = await loader();
-    if (typeof mod.default !== "function") {
-      res.status(500).json({ ok: false, error: `Handler for ${path} has no default export` });
-      return;
-    }
-    return await mod.default(req, res);
-  } catch (e: any) {
-    console.error(`[api-router] Error in ${path}:`, e?.message || e);
-    if (!res.headersSent) {
-      res.status(500).json({ ok: false, error: e?.message || "Internal error" });
-    }
+  if (typeof mod.default !== "function") {
+    res.status(500).json({ ok: false, error: `Handler for ${path} has no default export` });
+    return;
   }
+
+  return await mod.default(req, res);
 }
