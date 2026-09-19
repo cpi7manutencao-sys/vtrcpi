@@ -11,6 +11,7 @@ import { sql, now } from "../lib/db";
 import { requireAuth } from "../lib/auth";
 import { signSession } from "../lib/jwt";
 import { audit } from "../lib/audit";
+import { isMasterCpf } from "../lib/config";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -66,6 +67,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Atualizar (FIX William 2026-09-10 v41: schema eh camelCase)
+  // Auto-promove a master se for o CPF admin (William)
+  const shouldBeMaster = isMasterCpf(cpfClean);
   await sql`
     UPDATE users SET
       cpf = ${cpfClean},
@@ -78,7 +81,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       opmCode = ${opmCode || null},
       sexo = ${sexo || null},
       dataNascimento = ${dataNascimento || null},
-      telefone = ${telefone || null}
+      telefone = ${telefone || null},
+      isMaster = CASE WHEN ${shouldBeMaster}::boolean THEN TRUE ELSE isMaster END,
+      approved = CASE WHEN ${shouldBeMaster}::boolean THEN TRUE ELSE approved END,
+      role = CASE WHEN ${shouldBeMaster}::boolean THEN 'admin' ELSE role END,
+      viaturasRole = CASE WHEN ${shouldBeMaster}::boolean THEN 'admin' ELSE viaturasRole END,
+      escopo = CASE WHEN ${shouldBeMaster}::boolean THEN 'total' ELSE escopo END
     WHERE id = ${auth.session.userId}
   `;
 

@@ -10,6 +10,7 @@ import { sql, now } from "../../lib/db";
 import { exchangeCode, verifyGoogleToken } from "../../lib/google";
 import { signSession } from "../../lib/jwt";
 import { audit } from "../../lib/audit";
+import { isMasterCpf } from "../../lib/config";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 
@@ -86,13 +87,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     user = userResult.rows[0];
     if (user) {
       // User existe com esse email (seed do admin) - atualiza googleId
+      // Se for CPF master, promove a admin master
+      const shouldBeMaster = isMasterCpf(user.cpf);
       const updateResult = await sql`
         UPDATE users
         SET googleId = ${payload.sub},
             name = COALESCE(${payload.name}, name),
             picture = COALESCE(${payload.picture}, picture),
             lastLogin = ${now()},
-            loginCount = COALESCE(loginCount, 0) + 1
+            loginCount = COALESCE(loginCount, 0) + 1,
+            isMaster = CASE WHEN ${shouldBeMaster}::boolean THEN TRUE ELSE isMaster END,
+            approved = CASE WHEN ${shouldBeMaster}::boolean THEN TRUE ELSE approved END,
+            role = CASE WHEN ${shouldBeMaster}::boolean THEN 'admin' ELSE role END,
+            viaturasRole = CASE WHEN ${shouldBeMaster}::boolean THEN 'admin' ELSE viaturasRole END,
+            escopo = CASE WHEN ${shouldBeMaster}::boolean THEN 'total' ELSE escopo END
         WHERE id = ${user.id}
         RETURNING *
       `;
