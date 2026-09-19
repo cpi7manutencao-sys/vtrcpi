@@ -6,9 +6,15 @@
 // IMPORTANTE: Em Vercel Serverless, modulos nativos (better-sqlite3)
 // NAO funcionam. Por isso usamos safeRequire que retorna null
 // se nao conseguir carregar.
+//
+// Modulos puros JS (google-auth-library, @vercel/postgres) sao
+// bundleados pelo esbuild, entao precisamos importa-los direto.
 // ============================================================
 
 import { safeRequire } from "./safe-load";
+
+// @vercel/postgres e bundleado no esbuild (puro JS, sem deps nativas)
+import * as vercelPostgresModule from "@vercel/postgres";
 
 let sqliteDb: any = null;
 let pgliteInstance: any = null;
@@ -82,11 +88,11 @@ export async function query<T = any>(
   params: any[] = []
 ): Promise<QueryResult<T>> {
   if (usePostgres) {
-    const vercelPostgres = safeRequire("@vercel/postgres");
-    if (!vercelPostgres) {
-      throw new Error("@vercel/postgres nao disponivel");
+    // @vercel/postgres e bundleado (puro JS) - usar referencia direta
+    const vsql = (vercelPostgresModule as any).sql;
+    if (!vsql) {
+      throw new Error("@vercel/postgres.sql nao disponivel no bundle");
     }
-    const { sql: vsql } = vercelPostgres;
     const result = await vsql.query(text, params);
     return {
       rows: result.rows as T[],
@@ -187,8 +193,8 @@ export async function sql(strings: TemplateStringsArray, ...values: any[]): Prom
 
 export async function exec(text: string): Promise<void> {
   if (usePostgres) {
-    const vercelPostgres = safeRequire("@vercel/postgres");
-    if (vercelPostgres) await vercelPostgres.sql.query(text);
+    const vsql = (vercelPostgresModule as any).sql;
+    if (vsql) await vsql.query(text);
     return;
   }
   if (usePGlite) {
