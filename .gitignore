@@ -75,3 +75,5 @@ logs/
 # Temp
 temp_*/
 .ronda-tmp/
+
+.vercel

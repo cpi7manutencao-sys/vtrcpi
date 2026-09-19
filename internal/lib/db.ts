@@ -1,24 +1,28 @@
 // ============================================================
 // db.ts - Abstracao de DB
-// DEV SQLite (better-sqlite3) OU PGlite OU Vercel Postgres (prod)
+// DEV SQLite (better-sqlite3) OU PGlite OU Postgres via `pg` (prod)
 // API unificada: query(text, params) -> { rows: [...] }
 //
 // IMPORTANTE: Em Vercel Serverless, modulos nativos (better-sqlite3)
 // NAO funcionam. Por isso usamos safeRequire que retorna null
 // se nao conseguir carregar.
 //
-// Modulos puros JS (google-auth-library, @vercel/postgres) sao
-// bundleados pelo esbuild, entao precisamos importa-los direto.
+// @vercel/postgres v0.10+ exige pooled connection string, mas
+// Prisma Postgres so fornece direct connection. Solucao: usar
+// `pg` (node-postgres) puro JS com Pool, que aceita ambas.
+// `pg` e bundleado pelo esbuild (puro JS, sem deps nativas).
 // ============================================================
 
 import { safeRequire } from "./safe-load";
 
-// @vercel/postgres e bundleado no esbuild (puro JS, sem deps nativas)
-import * as vercelPostgresModule from "@vercel/postgres";
+// `pg` e bundleado no esbuild (puro JS, sem deps nativas)
+import pgMod from "pg";
+const { Pool: PgPool } = pgMod;
 
 let sqliteDb: any = null;
 let pgliteInstance: any = null;
 let pgliteReady: Promise<void> | null = null;
+let pgPool: any = null;
 
 // Carrega modulo nativo sob demanda; retorna null se nao existir
 function _safeRequire(name: string): any {
@@ -83,17 +87,28 @@ function toSqlitePlaceholders(sql: string): string {
   return sql.replace(/\$\d+/g, "?");
 }
 
+function getPgPool() {
+  if (pgPool) return pgPool;
+  pgPool = new PgPool({
+    connectionString: POSTGRES_URL,
+    ssl: POSTGRES_URL.includes("sslmode=require")
+      ? { rejectUnauthorized: false }
+      : undefined,
+    max: 1, // serverless: 1 connection per function instance
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 10000,
+  });
+  console.log("[db] Postgres Pool inicializado");
+  return pgPool;
+}
+
 export async function query<T = any>(
   text: string,
   params: any[] = []
 ): Promise<QueryResult<T>> {
   if (usePostgres) {
-    // @vercel/postgres e bundleado (puro JS) - usar referencia direta
-    const vsql = (vercelPostgresModule as any).sql;
-    if (!vsql) {
-      throw new Error("@vercel/postgres.sql nao disponivel no bundle");
-    }
-    const result = await vsql.query(text, params);
+    const pool = getPgPool();
+    const result = await pool.query(text, params);
     return {
       rows: result.rows as T[],
       rowCount: result.rowCount ?? result.rows.length,
@@ -193,8 +208,8 @@ export async function sql(strings: TemplateStringsArray, ...values: any[]): Prom
 
 export async function exec(text: string): Promise<void> {
   if (usePostgres) {
-    const vsql = (vercelPostgresModule as any).sql;
-    if (vsql) await vsql.query(text);
+    const pool = getPgPool();
+    await pool.query(text);
     return;
   }
   if (usePGlite) {

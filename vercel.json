@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build",
-  "installCommand": "npm install",
+  "installCommand": "npm install && cd frontend && npm install && cd ..",
   "framework": null,
   "outputDirectory": ".vercel/output",
   "headers": [
