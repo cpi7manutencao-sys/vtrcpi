@@ -1,5 +1,5 @@
 {
-  "buildCommand": "node tools/build-api.mjs && cd frontend && node ./node_modules/vite/bin/vite.js build",
+  "buildCommand": "npm run build",
   "installCommand": "npm install --ignore-scripts",
   "framework": null,
   "outputDirectory": ".vercel/output",
