@@ -87,6 +87,44 @@ function toSqlitePlaceholders(sql: string): string {
   return sql.replace(/\$\d+/g, "?");
 }
 
+/**
+ * Converte placeholders `?` (estilo SQLite/pg) em `$1, $2, ...` (Postgres).
+ * Necessario pq `pg` (node-postgres) NAO aceita `?` como placeholder
+ * (precisa ser $1, $2 etc). Faz contagem baseada em parametros pra
+ * nao contar placeholders dentro de strings literais.
+ */
+function questionToPostgres(sql: string, paramCount: number): string {
+  // regex simples: conta apenas `?` que nao estao dentro de aspas
+  // (a maioria dos SQLs do projeto usa aspas simples pra strings)
+  let result = "";
+  let inString = false;
+  let stringChar = "";
+  let idx = 0;
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    if (!inString && (ch === "'" || ch === '"')) {
+      inString = true;
+      stringChar = ch;
+      result += ch;
+    } else if (inString && ch === stringChar) {
+      // checa escape ''
+      if (sql[i + 1] === ch) {
+        result += ch + ch;
+        i++;
+      } else {
+        inString = false;
+        result += ch;
+      }
+    } else if (!inString && ch === "?") {
+      idx++;
+      result += `$${idx}`;
+    } else {
+      result += ch;
+    }
+  }
+  return result;
+}
+
 function getPgPool() {
   if (pgPool) return pgPool;
   pgPool = new PgPool({
@@ -108,7 +146,9 @@ export async function query<T = any>(
 ): Promise<QueryResult<T>> {
   if (usePostgres) {
     const pool = getPgPool();
-    const result = await pool.query(text, params);
+    // Aceita tanto `$1, $2` quanto `?` em qualquer modo - converte se necessario
+    const finalSql = text.includes("?") ? questionToPostgres(text, params.length) : text;
+    const result = await pool.query(finalSql, params);
     return {
       rows: result.rows as T[],
       rowCount: result.rowCount ?? result.rows.length,
@@ -209,7 +249,8 @@ export async function sql(strings: TemplateStringsArray, ...values: any[]): Prom
 export async function exec(text: string): Promise<void> {
   if (usePostgres) {
     const pool = getPgPool();
-    await pool.query(text);
+    const finalSql = text.includes("?") ? questionToPostgres(text, 0) : text;
+    await pool.query(finalSql);
     return;
   }
   if (usePGlite) {

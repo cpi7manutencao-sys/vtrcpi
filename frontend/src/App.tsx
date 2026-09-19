@@ -42,6 +42,19 @@ function SidebarRefresher() {
   return null;
 }
 
+/**
+ * FIX (William 2026-09-19): refresh do user no boot.
+ * Garante que mesmo apos F5 o estado do user (role, isMaster, approved)
+ * seja pego do DB e nao do JWT cacheado. Roda 1x no mount do App.
+ */
+function BootRefresher() {
+  useEffect(() => {
+    if (!getUser()) return;
+    refreshUserFromServer().catch(() => {});
+  }, []);
+  return null;
+}
+
 function PrivateLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-container">
@@ -54,7 +67,9 @@ function PrivateLayout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <BootRefresher />
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
 
       {/* Fluxo de cadastro novo */}
@@ -176,6 +191,7 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
 
