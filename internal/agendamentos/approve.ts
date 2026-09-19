@@ -32,6 +32,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!user) {
     return res.status(404).json({ ok: false, error: "Usuario nao encontrado" });
   }
+  // FIX (William 2026-09-19): master admin NAO bypassa mais a checagem de unidades.
+  // Cada gestor (incluindo master) so pode aprovar solicitacoes das unidades que cobre.
+  // Isso garante que "cada gestor so pode aprovar solicitacoes para sua propria unidade".
   if (user.viaturasRole !== "gestor" && user.viaturasRole !== "admin" && !user.isMaster) {
     return res.status(403).json({ ok: false, error: "Sem permissao para aprovar agendamento" });
   }
@@ -43,28 +46,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ ok: false, error: "Agendamento nao esta pendente (status=" + ag.status + ")" });
   }
 
-  // Verifica que o user eh gestor de uma das unidades REQUERENTE ou da VIATURA ATRIBUIDA
-  // FIX (William 2026-09-16 v77): antes so checava unidadeRequerente. Agora tambem
-  // checa se a viatura atribuida eh de uma unidade autorizada (gestor da unidade
-  // da viatura pode aprovar mesmo que a unidadeRequerente seja de outra unidade).
-  if (user.viaturasRole !== "admin" && !user.isMaster) {
-    const unidadesGestor = parseJsonArray(user.unidadesGestor);
-    const autorizadas = await getUserUnidadesAutorizadas(unidadesGestor);
-    let podeAprovar = false;
-    if (ag.unidadeRequerente && autorizadas.includes(ag.unidadeRequerente)) {
+  // Verifica que o user cobre a unidade REQUERENTE ou a VIATURA ATRIBUIDA
+  // (mesmo admin/master precisa ter a unidade em unidadesGestor/unidadesEditor)
+  const unidades = user.viaturasRole === "admin" || user.isMaster
+    ? parseJsonArray(user.unidadesGestor)
+    : parseJsonArray(user.unidadesGestor);
+  const autorizadas = await getUserUnidadesAutorizadas(unidades);
+  let podeAprovar = false;
+  if (ag.unidadeRequerente && autorizadas.includes(Number(ag.unidadeRequerente))) {
+    podeAprovar = true;
+  }
+  // Se tem viatura atribuida, verifica se eh da unidade autorizada
+  if (!podeAprovar && ag.viaturaAtribuida) {
+    const vtrRes = await sql`SELECT opm FROM viaturas WHERE id = ${ag.viaturaAtribuida} LIMIT 1`;
+    const vtrOpm = Number(vtrRes.rows[0]?.opm);
+    if (vtrOpm && autorizadas.includes(vtrOpm)) {
       podeAprovar = true;
     }
-    // Se tem viatura atribuida, verifica se eh da unidade do gestor
-    if (!podeAprovar && ag.viaturaAtribuida) {
-      const vtrRes = await sql`SELECT opm FROM viaturas WHERE id = ${ag.viaturaAtribuida} LIMIT 1`;
-      const vtrOpm = vtrRes.rows[0]?.opm;
-      if (vtrOpm && autorizadas.includes(vtrOpm)) {
-        podeAprovar = true;
-      }
-    }
-    if (!podeAprovar) {
-      return res.status(403).json({ ok: false, error: "Voce nao tem permissao pra aprovar pedidos dessa unidade/viatura" });
-    }
+  }
+  if (!podeAprovar) {
+    return res.status(403).json({ ok: false, error: "Voce nao tem permissao pra aprovar pedidos dessa unidade/viatura" });
   }
 
   const ts = now();
