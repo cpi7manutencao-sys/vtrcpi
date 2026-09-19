@@ -69,19 +69,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Valida cobertura: a unidade REQUERENTE deve ter pelo menos 1 gestor
   const isAdmin = user.viaturasRole === "admin" || user.isMaster === true || user.isMaster === 1;
   if (!isAdmin && unidadeRequerenteId) {
+    console.log("[debug] user:", JSON.stringify({ id: user.id, viaturasrole: user.viaturasRole, isMaster: user.isMaster }));
+    console.log("[debug] unidadeRequerenteId:", unidadeRequerenteId, "type:", typeof unidadeRequerenteId);
     // Busca gestores + admins
     const cobridoresRes = await sql`
       SELECT unidadesGestor FROM users
       WHERE (viaturasRole = 'gestor' OR viaturasRole = 'admin' OR isMaster = TRUE)
         AND active = TRUE
     `;
-    console.log("[debug] cobridoresRes.rows:", JSON.stringify(cobridoresRes.rows));
     let temGestor = false;
     for (const c of cobridoresRes.rows) {
-      console.log("[debug] c keys:", Object.keys(c), "c.unidadesGestor:", c.unidadesGestor, "c.unidadesgestor:", c.unidadesgestor);
       const ugs = parseJsonArray(c.unidadesGestor || c.unidadesgestor);
-      console.log("[debug] ugs:", ugs, "includes", unidadeRequerenteId, "?", ugs.includes(unidadeRequerenteId));
-      if (ugs.includes(unidadeRequerenteId)) { temGestor = true; break; }
+      console.log("[debug] ugs type:", typeof ugs, "isArray:", Array.isArray(ugs), "values:", ugs.slice(0, 5), "typeof[0]:", typeof ugs[0]);
+      console.log("[debug] unidadeRequerenteId=", unidadeRequerenteId, "ugs.includes(", unidadeRequerenteId, "):", ugs.includes(unidadeRequerenteId));
+      if (ugs.includes(Number(unidadeRequerenteId))) { temGestor = true; break; }
     }
     if (!temGestor) {
       // Tenta recursivamente (se a matriz cobre)
