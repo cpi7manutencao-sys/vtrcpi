@@ -123,6 +123,9 @@ function toSqlitePlaceholders(sql: string): string {
   return sql.replace(/\$\d+/g, "?");
 }
 
+// Build marker - confirma que o bundle novo estah rodando
+const DB_BUILD = "v2026-09-19-03-39-camelize-fix";
+
 /**
  * Converte placeholders `?` (estilo SQLite/pg) em `$1, $2, ...` (Postgres).
  * Necessario pq `pg` (node-postgres) NAO aceita `?` como placeholder

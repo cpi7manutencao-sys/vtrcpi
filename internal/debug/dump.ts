@@ -12,6 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = r.rows[0];
   return res.status(200).json({
     ok: true,
+    buildId: "v2026-09-19-03-39-camelize-fix",
     columns: Object.keys(user || {}),
     user: user || null,
   });
