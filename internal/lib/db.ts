@@ -210,6 +210,20 @@ function camelizeKey(key: string): string {
   return COLUMN_CAMEL_MAP[key.toLowerCase()] || key;
 }
 
+function camelizeRow(row: any): any {
+  if (!row || typeof row !== "object") return row;
+  const result: any = {};
+  for (const k of Object.keys(row)) {
+    result[camelizeKey(k)] = row[k];
+  }
+  return result;
+}
+
+function camelizeRows(rows: any[]): any[] {
+  if (!Array.isArray(rows)) return rows;
+  return rows.map(camelizeRow);
+}
+
 /**
  * Converte placeholders `?` (estilo SQLite/pg) em `$1, $2, ...` (Postgres).
  * Necessario pq `pg` (node-postgres) NAO aceita `?` como placeholder
