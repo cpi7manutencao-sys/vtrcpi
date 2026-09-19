@@ -25,36 +25,6 @@ import { safeRequire } from "./safe-load";
 import pgMod from "pg";
 const { Pool: PgPool } = pgMod;
 
-/**
- * O `pg` retorna nomes de coluna em LOWERCASE por padrao (warname,
- * viaturasrole, ismaster), mas o codigo do projeto espera camelCase
- * (warName, viaturasRole, isMaster). Solucao: envolver o client do
- * Pool pra mapear as chaves de cada row pra camelCase antes de
- * devolver pro codigo.
- *
- * Implementacao simples: detecta underscore_separated e converte.
- * IDs ja vem lowercase e sao mantidos (warning, etc).
- */
-function camelizeKey(key: string): string {
-  // Caso especial: nomes de 1 letra (id, cpf, re) ficam lowercase
-  // Caso comum: warname -> warName, postograduacao -> postoGraduacao
-  return key.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
-}
-
-function camelizeRow(row: any): any {
-  if (!row || typeof row !== "object") return row;
-  const result: any = {};
-  for (const k of Object.keys(row)) {
-    result[camelizeKey(k)] = row[k];
-  }
-  return result;
-}
-
-function camelizeRows(rows: any[]): any[] {
-  if (!Array.isArray(rows)) return rows;
-  return rows.map(camelizeRow);
-}
-
 let sqliteDb: any = null;
 let pgliteInstance: any = null;
 let pgliteReady: Promise<void> | null = null;
