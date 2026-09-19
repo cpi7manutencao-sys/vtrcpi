@@ -59,6 +59,19 @@ const config = {
 };
 writeFileSync(join(outBase, "config.json"), JSON.stringify(config, null, 2));
 
+// 4. Cria .vc-config.json dentro da function folder
+console.log("[build-api] Criando .vc-config.json...");
+const vcConfig = {
+  runtime: "nodejs20.x",
+  handler: "index.js",
+  launcherType: "Nodejs",
+  shouldAddHelpers: false
+};
+writeFileSync(
+  join(outBase, "functions", "api", "index.func", ".vc-config.json"),
+  JSON.stringify(vcConfig, null, 2)
+);
+
 console.log("[build-api] OK");
 console.log("");
 console.log("Conteudo .vercel/output/functions/api/index.func/:");
