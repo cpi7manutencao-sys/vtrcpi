@@ -36,9 +36,9 @@ await build({
     "@electric-sql/pglite",
     "pdfkit",
     "nodemailer",
-    "jose",
-    "google-auth-library",
     "svg-to-pdfkit",
+    // "jose" e "google-auth-library" sao puros JS - bundlear no index.js
+    // pra function ser auto-contida (sem depender de node_modules)
     "@vercel/postgres",
   ],
   // Importante: external nao inclui nossas deps locais (internal/)
