@@ -399,19 +399,15 @@ export default function IfctMobilePage() {
         <div style={{ background: '#e8f5e9', border: '1px solid #4caf50', borderRadius: 8, padding: 16, textAlign: 'center', color: '#2e7d32' }}>
           <strong>✅ ICT {ag.ifctStatus === 'validado' ? 'validado' : 'preenchido'}</strong>
           {ag.ifctStatus === 'preenchido' && <p style={{ margin: '4px 0 0 0', fontSize: 13 }}>Aguardando validacao do gestor.</p>}
-          {/* FIX (William 2026-09-08): botao de baixar PDF (Frente/Verso) */}
-          <a
-            href={ '/api/ifct/pdf?token=' + encodeURIComponent(token || '') }
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-block', marginTop: 12, padding: '10px 20px',
-              background: '#1976d2', color: 'white', textDecoration: 'none',
-              borderRadius: 6, fontWeight: 600, fontSize: 14,
-            }}
-          >
-            📥 Baixar PDF do ICT
-          </a>
+          {/* FIX (William 2026-09-19): PDF desabilitado em Vercel (pdfkit requer binario nativo).
+              TODO: implementar jsPDF no frontend para gerar o PDF no browser. */}
+          <div style={{
+            marginTop: 12, padding: 10, background: '#fff3e0', border: '1px solid #ffb74d',
+            borderRadius: 6, color: '#e65100', fontSize: 13,
+          }}>
+            📄 Download de PDF indispon&iacute;vel nesta vers&atilde;o (Vercel n&atilde;o suporta m&oacute;dulos nativos).<br/>
+            <small>Use &ldquo;Imprimir&rdquo; do navegador (Ctrl+P) para gerar PDF.</small>
+          </div>
         </div>
       )}
 

@@ -434,7 +434,7 @@ export default function ProcessoDescargaPage() {
                   <td style={{ fontFamily: 'monospace' }}>{v.patrimonio || '-'}</td>
                   <td>{v.marcaModelo || '-'}</td>
                   <td>{v.anoFab || '-'}</td>
-                  <td>{v.valor ? `R$ ${v.valor.toFixed(2)}` : '-'}</td>
+                  <td>{v.valor != null ? `R$ ${Number(v.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
                   <td>{v.situacao || '-'}</td>
                   <td><code style={{ fontSize: 11 }}>{v.opmCode || (v.opm && typeof v.opm === 'object' ? v.opm.code : String(v.opm || '').substring(0, 8))}</code></td>
                   <td>
