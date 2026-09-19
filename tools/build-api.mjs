@@ -37,9 +37,8 @@ await build({
     "pdfkit",
     "nodemailer",
     "svg-to-pdfkit",
-    // "jose" e "google-auth-library" sao puros JS - bundlear no index.js
-    // pra function ser auto-contida (sem depender de node_modules)
-    "@vercel/postgres",
+    // "jose", "google-auth-library", "@vercel/postgres" sao puros JS
+    // - bundlear no index.js pra function ser auto-contida
   ],
   // Importante: external nao inclui nossas deps locais (internal/)
   // esbuild vai bundle elas automaticamente
