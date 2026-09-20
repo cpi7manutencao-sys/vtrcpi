@@ -15,11 +15,13 @@ import * as authRefresh from "../internal/auth/refresh";
 
 import * as usersApprove from "../internal/users/approve";
 import * as usersBuscaPorRe from "../internal/users/busca-por-re";
+import * as usersDelete from "../internal/users/delete";
 import * as usersList from "../internal/users/list";
 import * as usersPending from "../internal/users/pending";
 import * as usersProfile from "../internal/users/profile";
 import * as usersPromote from "../internal/users/promote";
 import * as usersReject from "../internal/users/reject";
+import * as usersUpdateMe from "../internal/users/update-me";
 
 import * as unitsCreate from "../internal/units/create";
 import * as unitsGetByCode from "../internal/units/get-by-code";
@@ -90,11 +92,13 @@ const routes: Record<string, HandlerModule> = {
 
   "/api/users/approve": usersApprove as HandlerModule,
   "/api/users/busca-por-re": usersBuscaPorRe as HandlerModule,
+  "/api/users/delete": usersDelete as HandlerModule,
   "/api/users/list": usersList as HandlerModule,
   "/api/users/pending": usersPending as HandlerModule,
   "/api/users/profile": usersProfile as HandlerModule,
   "/api/users/promote": usersPromote as HandlerModule,
   "/api/users/reject": usersReject as HandlerModule,
+  "/api/users/update-me": usersUpdateMe as HandlerModule,
 
   "/api/units/create": unitsCreate as HandlerModule,
   "/api/units/get-by-code": unitsGetByCode as HandlerModule,

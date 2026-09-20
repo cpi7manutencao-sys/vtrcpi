@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getUser, refreshUserFromServer, useUserSubscription } from '../lib/auth'
-import { getHomeStats } from '../lib/api'
+import { getUser, refreshUserFromServer, setAuth, useUserSubscription } from '../lib/auth'
+import { getHomeStats, updateMyProfile } from '../lib/api'
 
 export default function HomePage() {
   const [stats, setStats] = useState<any>(null)
@@ -14,6 +14,16 @@ export default function HomePage() {
   const [currentUser, setCurrentUser] = useState(getUser())
   // FIX (William 2026-08-25): usa o user do subscription se ele mudou
   const user = subscribedUser || currentUser
+
+  // FIX (William 2026-09-20): modal de edicao do proprio perfil
+  const [showEditPerfil, setShowEditPerfil] = useState(false)
+  const [editWarName, setEditWarName] = useState('')
+  const [editPostoGraduacao, setEditPostoGraduacao] = useState('')
+  const [editCodptgr, setEditCodptgr] = useState('')
+  const [editTelefone, setEditTelefone] = useState('')
+  const [editSalvo, setEditSalvo] = useState(false)
+  const [editErro, setEditErro] = useState('')
+  const [editLoading, setEditLoading] = useState(false)
 
   useEffect(() => {
     if (!currentUser) return
@@ -39,6 +49,61 @@ export default function HomePage() {
       .catch(e => setErro(e.message))
       .finally(() => setLoading(false))
   }, [currentUser?.cpf])
+
+  // FIX (William 2026-09-20): funcoes para modal de edicao de perfil
+  function abrirEditPerfil() {
+    if (!user) return
+    setEditWarName(user.warName || '')
+    setEditPostoGraduacao(user.postoGraduacao || '')
+    // codptgr e telefone nao vem no JWT - tenta pegar do user direto
+    setEditCodptgr((user as any).codptgr || '')
+    setEditTelefone((user as any).telefone || '')
+    setEditSalvo(false)
+    setEditErro('')
+    setShowEditPerfil(true)
+  }
+
+  async function salvarPerfil() {
+    setEditLoading(true)
+    setEditSalvo(false)
+    setEditErro('')
+    try {
+      const r: any = await updateMyProfile({
+        warName: editWarName,
+        postoGraduacao: editPostoGraduacao,
+        codptgr: editCodptgr || undefined,
+        telefone: editTelefone || undefined,
+      })
+      if (r.ok) {
+        // Atualiza localStorage com novo token + session
+        if (r.token && r.session) {
+          setAuth(r.token, {
+            ...user,
+            warName: r.session.warName,
+            postoGraduacao: r.session.postoGraduacao,
+            cpf: r.session.cpf,
+            re: r.session.re,
+            isMaster: r.session.isMaster,
+            approved: r.session.approved,
+            viaturasRole: r.session.viaturasRole,
+            unit: r.session.unitId,
+          } as any)
+        }
+        setEditSalvo(true)
+        // Atualiza o currentUser pra refletir as mudancas
+        setCurrentUser(getUser())
+        setTimeout(() => {
+          setShowEditPerfil(false)
+        }, 1000)
+      } else {
+        setEditErro(r.error || 'Erro ao salvar')
+      }
+    } catch (e: any) {
+      setEditErro(e.message || 'Erro ao salvar')
+    } finally {
+      setEditLoading(false)
+    }
+  }
 
   return (
     <div>
@@ -96,7 +161,15 @@ export default function HomePage() {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Seu perfil</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ marginTop: 0 }}>Seu perfil</h3>
+          {/* FIX (William 2026-09-20): botao para editar perfil (warName, posto, telefone) */}
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={abrirEditPerfil}
+            title="Editar nome de guerra, posto, telefone"
+          >✏️ Editar Perfil</button>
+        </div>
         <table className="table">
           <tbody>
             <tr><th>CPF</th><td>{user?.cpf}</td></tr>
@@ -118,6 +191,103 @@ export default function HomePage() {
           </tbody>
         </table>
       </div>
+
+      {/* FIX (William 2026-09-20): Modal de edicao do proprio perfil */}
+      {showEditPerfil && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: 20,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowEditPerfil(false) }}
+        >
+          <div style={{
+            background: 'white', borderRadius: 8, padding: 24,
+            maxWidth: 480, width: '100%', boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          }}>
+            <h2 style={{ marginTop: 0 }}>✏️ Editar Perfil</h2>
+            <p style={{ color: '#666', fontSize: 13, marginTop: 0 }}>
+              Atualize seus dados pessoais. CPF, RE e unidades só podem ser alterados pelo admin.
+            </p>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                Posto/Graduação
+              </label>
+              <input
+                type="text"
+                value={editPostoGraduacao}
+                onChange={e => setEditPostoGraduacao(e.target.value)}
+                placeholder="Ex: Cb PM"
+                style={{ width: '100%', padding: 8, fontSize: 14, border: '1px solid #ccc', borderRadius: 4 }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                Nome de Guerra
+              </label>
+              <input
+                type="text"
+                value={editWarName}
+                onChange={e => setEditWarName(e.target.value)}
+                placeholder="Ex: GUERREIRO"
+                style={{ width: '100%', padding: 8, fontSize: 14, border: '1px solid #ccc', borderRadius: 4 }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                Código Posto/Graduação (opcional)
+              </label>
+              <input
+                type="text"
+                value={editCodptgr}
+                onChange={e => setEditCodptgr(e.target.value)}
+                placeholder="Ex: 6157"
+                style={{ width: '100%', padding: 8, fontSize: 14, border: '1px solid #ccc', borderRadius: 4 }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                Telefone (opcional)
+              </label>
+              <input
+                type="text"
+                value={editTelefone}
+                onChange={e => setEditTelefone(e.target.value)}
+                placeholder="(11) 98765-4321"
+                style={{ width: '100%', padding: 8, fontSize: 14, border: '1px solid #ccc', borderRadius: 4 }}
+              />
+            </div>
+
+            {editErro && (
+              <div className="alert alert-error" style={{ fontSize: 13 }}>{editErro}</div>
+            )}
+            {editSalvo && (
+              <div className="alert" style={{ background: '#e8f5e9', color: '#2e7d32', fontSize: 13 }}>
+                ✅ Dados atualizados com sucesso!
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowEditPerfil(false)}
+                disabled={editLoading}
+              >Cancelar</button>
+              <button
+                className="btn btn-primary"
+                onClick={salvarPerfil}
+                disabled={editLoading || editSalvo}
+              >{editLoading ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

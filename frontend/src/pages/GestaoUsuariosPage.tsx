@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { getUser, isAdmin } from '../lib/auth'
-import { listAllUsers, setViaturasRole, listUnits } from '../lib/api'
+import { listAllUsers, setViaturasRole, listUnits, deleteUser } from '../lib/api'
 import { useAutoRefresh } from '../lib/useAutoRefresh'
 
 export default function GestaoUsuariosPage() {
@@ -217,6 +217,32 @@ export default function GestaoUsuariosPage() {
     }
   }
 
+  // FIX (William 2026-09-20): admin master pode excluir usuarios (soft delete)
+  async function handleExcluir(u: any) {
+    if (!user?.isMaster) {
+      alert('Apenas admin master pode excluir usuarios.')
+      return
+    }
+    const confirmar = confirm(
+      `Excluir o usuario ${u.postoGraduacao || ''} ${u.warName || u.name || ''} (RE ${u.re || 'sem RE'})?\n\n` +
+      `Isso fara soft delete (active=FALSE). O usuario nao conseguira mais logar.\n` +
+      `Pode ser revertido pedindo pro admin restaurar.\n\n` +
+      `Confirma a exclusao?`
+    )
+    if (!confirmar) return
+    try {
+      const r: any = await deleteUser(u.id)
+      if (r.ok) {
+        alert('Usuario excluido com sucesso.')
+        carregar()
+      } else {
+        alert('Erro: ' + (r.error || 'desconhecido'))
+      }
+    } catch (e: any) {
+      alert('Erro: ' + (e.message || 'desconhecido'))
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -273,6 +299,23 @@ export default function GestaoUsuariosPage() {
                         <button className="btn btn-primary btn-sm" onClick={() => abrirEdição(u)}>
                           Editar
                         </button>
+                        {u.id !== user.id && (
+                          <button
+                            className="btn btn-sm"
+                            onClick={() => handleExcluir(u)}
+                            title="Excluir usuario (apenas admin master)"
+                            style={{
+                              background: '#fff',
+                              border: '1px solid #c62828',
+                              color: '#c62828',
+                              padding: '4px 8px',
+                              fontSize: '12px',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              marginLeft: 4,
+                            }}
+                          >🗑 Excluir</button>
+                        )}
                       </td>
                     )}
                   </tr>

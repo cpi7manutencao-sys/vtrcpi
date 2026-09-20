@@ -71,6 +71,21 @@ export const rejectUser = (userId: number, motivo: string) =>
     body: JSON.stringify({ userId, motivo }),
   });
 
+// FIX (William 2026-09-20): admin master pode excluir usuarios (soft delete)
+export const deleteUser = (userId: number) =>
+  apiFetch(`/api/users/delete`, {
+    method: "POST",
+    body: JSON.stringify({ userId }),
+  });
+
+// FIX (William 2026-09-20): usuario edita seus proprios dados pessoais
+// (warName, postoGraduacao, telefone). NAO pode mudar CPF/RE/role.
+export const updateMyProfile = (data: { warName?: string; postoGraduacao?: string; codptgr?: string; telefone?: string }) =>
+  apiFetch(`/api/users/update-me`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
 export const promoteUser = (userId: number, opts: { viaturasRole?: string; unidadesGestor?: number[]; unidadesEditor?: number[]; escopo?: string; unitId?: number }) =>
   apiFetch(`/api/users/promote`, {
     method: "POST",
