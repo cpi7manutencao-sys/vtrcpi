@@ -17,9 +17,9 @@ export default function HomePage() {
 
   // FIX (William 2026-09-20): modal de edicao do proprio perfil
   const [showEditPerfil, setShowEditPerfil] = useState(false)
+  const [editName, setEditName] = useState('')
   const [editWarName, setEditWarName] = useState('')
   const [editPostoGraduacao, setEditPostoGraduacao] = useState('')
-  const [editCodptgr, setEditCodptgr] = useState('')
   const [editTelefone, setEditTelefone] = useState('')
   const [editSalvo, setEditSalvo] = useState(false)
   const [editErro, setEditErro] = useState('')
@@ -53,10 +53,11 @@ export default function HomePage() {
   // FIX (William 2026-09-20): funcoes para modal de edicao de perfil
   function abrirEditPerfil() {
     if (!user) return
+    // name eh o nome completo (vem do Google, as vezes vem do email)
+    setEditName(user.name || '')
     setEditWarName(user.warName || '')
     setEditPostoGraduacao(user.postoGraduacao || '')
-    // codptgr e telefone nao vem no JWT - tenta pegar do user direto
-    setEditCodptgr((user as any).codptgr || '')
+    // telefone nao vem no JWT - pega do localStorage do setAuth
     setEditTelefone((user as any).telefone || '')
     setEditSalvo(false)
     setEditErro('')
@@ -69,9 +70,9 @@ export default function HomePage() {
     setEditErro('')
     try {
       const r: any = await updateMyProfile({
+        name: editName,
         warName: editWarName,
         postoGraduacao: editPostoGraduacao,
-        codptgr: editCodptgr || undefined,
         telefone: editTelefone || undefined,
       })
       if (r.ok) {
@@ -79,6 +80,7 @@ export default function HomePage() {
         if (r.token && r.session) {
           setAuth(r.token, {
             ...user,
+            name: r.session.name,
             warName: r.session.warName,
             postoGraduacao: r.session.postoGraduacao,
             cpf: r.session.cpf,
@@ -227,6 +229,22 @@ export default function HomePage() {
 
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                Nome (completo)
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                placeholder="Ex: MICHEL WILLIAM DE MORAES"
+                style={{ width: '100%', padding: 8, fontSize: 14, border: '1px solid #ccc', borderRadius: 4 }}
+              />
+              <small style={{ color: '#888', fontSize: 11 }}>
+                O Google às vezes preenche isso com parte do email. Corrija aqui.
+              </small>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                 Nome de Guerra
               </label>
               <input
@@ -234,19 +252,6 @@ export default function HomePage() {
                 value={editWarName}
                 onChange={e => setEditWarName(e.target.value)}
                 placeholder="Ex: GUERREIRO"
-                style={{ width: '100%', padding: 8, fontSize: 14, border: '1px solid #ccc', borderRadius: 4 }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                Código Posto/Graduação (opcional)
-              </label>
-              <input
-                type="text"
-                value={editCodptgr}
-                onChange={e => setEditCodptgr(e.target.value)}
-                placeholder="Ex: 6157"
                 style={{ width: '100%', padding: 8, fontSize: 14, border: '1px solid #ccc', borderRadius: 4 }}
               />
             </div>

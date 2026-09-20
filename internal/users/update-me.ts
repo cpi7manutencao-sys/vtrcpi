@@ -32,6 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     postoGraduacao,
     codptgr,
     telefone,
+    name,
   } = req.body || {};
 
   // Validacoes basicas
@@ -40,6 +41,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (postoGraduacao !== undefined && (!postoGraduacao || String(postoGraduacao).trim().length === 0)) {
     return res.status(400).json({ ok: false, error: "Posto/Graduacao nao pode ser vazio" });
+  }
+  if (name !== undefined && (!name || String(name).trim().length === 0)) {
+    return res.status(400).json({ ok: false, error: "Nome nao pode ser vazio" });
   }
   // telefone opcional - validar formato basico se vier
   if (telefone !== undefined && telefone !== null && telefone !== "") {
@@ -69,6 +73,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     updates.push(`telefone = $${pIdx++}`);
     params.push(telefone || null);
   }
+  if (name !== undefined) {
+    updates.push(`name = $${pIdx++}`);
+    params.push(String(name).trim());
+  }
 
   if (updates.length === 0) {
     return res.status(400).json({ ok: false, error: "Nenhum campo para atualizar" });
@@ -87,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const token = await signSession({
     googleId: session.googleId,
     email: session.email,
-    name: session.name,
+    name: user.name,
     picture: session.picture,
     userId: user.id,
     cpf: user.cpf,
@@ -111,7 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     "user.update_me",
     "user",
     String(session.userId),
-    { warName, postoGraduacao, telefone },
+    { warName, postoGraduacao, telefone, name },
     req
   );
 
@@ -122,6 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       userId: user.id,
       cpf: user.cpf,
       re: user.re,
+      name: user.name,
       warName: user.warName,
       postoGraduacao: user.postoGraduacao,
       telefone: user.telefone,

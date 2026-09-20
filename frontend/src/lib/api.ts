@@ -79,8 +79,12 @@ export const deleteUser = (userId: number) =>
   });
 
 // FIX (William 2026-09-20): usuario edita seus proprios dados pessoais
-// (warName, postoGraduacao, telefone). NAO pode mudar CPF/RE/role.
-export const updateMyProfile = (data: { warName?: string; postoGraduacao?: string; codptgr?: string; telefone?: string }) =>
+// (name, warName, postoGraduacao, telefone). NAO pode mudar CPF/RE/role.
+// - name: nome completo (vem do Google as vezes errado, user corrige aqui)
+// - warName: nome de guerra (apelido PM)
+// - postoGraduacao: posto/graduacao
+// - telefone: telefone (opcional)
+export const updateMyProfile = (data: { name?: string; warName?: string; postoGraduacao?: string; telefone?: string }) =>
   apiFetch(`/api/users/update-me`, {
     method: "POST",
     body: JSON.stringify(data),
