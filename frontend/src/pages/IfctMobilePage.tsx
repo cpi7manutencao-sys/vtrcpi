@@ -730,19 +730,63 @@ function AbastecimentoModal({ token, onClose, onSaved }: { token: string; onClos
   const [posto, setPosto] = useState('')
   const [observacao, setObservacao] = useState('')
   const [fotoBase64, setFotoBase64] = useState('')
+  const [fotoLoading, setFotoLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [erro, setErro] = useState('')
 
   function handleFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
-    if (f.size > 5 * 1024 * 1024) {
-      setErro('Foto muito grande (max 5MB)')
+    if (f.size > 10 * 1024 * 1024) {
+      setErro('Foto muito grande (max 10MB)')
       return
     }
+    setErro('')
+    setFotoLoading(true)
+
+    // FIX (William 2026-09-20): redimensiona foto no cliente pra max 1280px
+    // e comprime como JPEG quality 0.7 antes de virar base64.
+    // Motivo: Vercel Serverless tem limite de ~4.5MB por request. Foto de
+    // celular moderna (5-10MB) estoura isso, servidor retorna text/plain
+    // "Request Entity Too Large" e o frontend quebra com
+    // "Unexpected token 'R'..." (tentando fazer res.json()).
+    const img = new Image()
     const reader = new FileReader()
-    reader.onload = () => setFotoBase64(reader.result as string)
-    reader.onerror = () => setErro('Erro ao ler foto')
+    reader.onload = () => {
+      img.onload = () => {
+        const MAX_W = 1280
+        let w = img.naturalWidth
+        let h = img.naturalHeight
+        if (w > MAX_W) {
+          h = Math.round((h * MAX_W) / w)
+          w = MAX_W
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          setErro('Canvas nao disponivel')
+          setFotoLoading(false)
+          return
+        }
+        ctx.drawImage(img, 0, 0, w, h)
+        // JPEG 0.7 reduz drasticamente o tamanho mantendo qualidade
+        // suficiente para um comprovante de abastecimento.
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+        setFotoBase64(dataUrl)
+        setFotoLoading(false)
+      }
+      img.onerror = () => {
+        setErro('Erro ao carregar foto')
+        setFotoLoading(false)
+      }
+      img.src = reader.result as string
+    }
+    reader.onerror = () => {
+      setErro('Erro ao ler foto')
+      setFotoLoading(false)
+    }
     reader.readAsDataURL(f)
   }
 
@@ -814,7 +858,9 @@ function AbastecimentoModal({ token, onClose, onSaved }: { token: string; onClos
             textAlign: 'center',
           }}
         >
-          {fotoBase64 ? '✅ Foto anexada (toque para trocar)' : '📷 Tirar foto do comprovante'}
+          {fotoLoading ? '⏳ Processando foto...' :
+           fotoBase64 ? '✅ Foto anexada (toque para trocar)' :
+           '📷 Tirar foto do comprovante'}
         </label>
         <input
           id="foto-comprovante-input"
