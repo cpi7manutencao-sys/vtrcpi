@@ -380,8 +380,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   page1.drawLine({ start: { x: absX + subNatW, y: A4_H - metY - 14 }, end: { x: absX + subNatW, y: A4_H - metY - 14 - subH }, thickness: 0.5 });
   page1.drawLine({ start: { x: absX + subNatW + subQtdW, y: A4_H - metY - 14 }, end: { x: absX + subNatW + subQtdW, y: A4_H - metY - 14 - subH }, thickness: 0.5 });
   drawCellText(page1, fontReg, "Natureza", absX, A4_H - metY - 14 - subH + 4, subNatW, 8.5);
-  drawCellText(page1, fontReg, "Quantidade", absX + subNatW, A4_H - metY - 14 - subH + 4, subQtdW, 8.5, { align: "right", dx: -4 });
-  drawCellText(page1, fontReg, "KM", absX + subNatW + subQtdW, A4_H - metY - 14 - subH + 4, subKmW, 8.5, { align: "right", dx: -4 });
+  drawCellText(page1, fontReg, "Quantidade", absX + subNatW, A4_H - metY - 14 - subH + 4, subQtdW, 8.5, { align: "right", dx: 4 });
+  drawCellText(page1, fontReg, "KM", absX + subNatW + subQtdW, A4_H - metY - 14 - subH + 4, subKmW, 8.5, { align: "right", dx: 4 });
   // FIX (William 2026-09-20 v70): retangulo externo do box Abastecimento
   // (estava faltando - ficava solto em relacao ao Hodometro do lado)
   page1.drawRectangle({ x: absX, y: A4_H - metY - metH, width: metW, height: metH - 14, borderColor: BLACK, borderWidth: 0.5 });
@@ -397,8 +397,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const norm = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const abs = (abastecimentos as any[]).find(a => norm(a.natureza) === norm(nat));
     drawCellText(page1, fontReg, nat, absX, A4_H - ay - absRowH / 2 - 4, subNatW, 9);
-    drawCellText(page1, fontReg, abs ? `${abs.quantidadeLitros} L` : "—", absX + subNatW, A4_H - ay - absRowH / 2 - 4, subQtdW, 9, { align: "right", dx: -4 });
-    drawCellText(page1, fontReg, abs ? formatNumber(abs.odometro) : "—", absX + subNatW + subQtdW, A4_H - ay - absRowH / 2 - 4, subKmW, 9, { align: "right", dx: -4 });
+    drawCellText(page1, fontReg, abs ? `${abs.quantidadeLitros} L` : "—", absX + subNatW, A4_H - ay - absRowH / 2 - 4, subQtdW, 9, { align: "right", dx: 4 });
+    drawCellText(page1, fontReg, abs ? formatNumber(abs.odometro) : "—", absX + subNatW + subQtdW, A4_H - ay - absRowH / 2 - 4, subKmW, 9, { align: "right", dx: 4 });
   }
 
   y = metY + metH + 6;
@@ -416,19 +416,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     digre: expedidor?.digre || "",
     timestamp: ag.concluidoEm || ag.aprovadoEm || Date.now(),
   });
-  y += expHdrH + expBoxH + 6;
-  // Nome do gestor
+  // FIX (William 2026-09-20 v71): infoTxt fica LOGO abaixo do box de
+  // assinatura (4pt de gap), depois "Baseado..." fica mais abaixo com
+  // folga clara. Antes era 6+12 = 18pt de gap entre infoTxt e "Baseado..."
+  // mas infoTxt era desenhado em y-10 e "Baseado..." em y-8 do mesmo y,
+  // resultando em apenas 10pt de diferenca visual entre os dois textos.
+  y += expHdrH + expBoxH + 4;
+  // Nome do gestor (IMEDIATAMENTE abaixo do box)
   const infoTxt = [
     expedidor?.postoGraduacao || "Cb PM",
     expedidor?.warName || expedidor?.name || "WILLIAM",
     expedidor?.re ? `RE ${expedidor.re}${expedidor.digre ? `-${expedidor.digre}` : ""}` : "",
   ].filter(Boolean).join(" ");
-  page1.drawText(infoTxt, { x: M, y: A4_H - y - 10, size: 9, font: fontBold });
-  y += 12;
+  page1.drawText(infoTxt, { x: M, y: A4_H - y - 9, size: 9, font: fontBold });
+  y += 18;
 
-  // "Baseado no Impresso..."
+  // "Baseado no Impresso..." (mais abaixo, com folga)
   page1.drawText("Baseado no Impresso Grafico do CSM/M Int", {
-    x: A4_W - M - 200, y: A4_H - y - 8, size: 8, font: fontReg, color: GRAY_TEXT,
+    x: A4_W - M - 200, y: A4_H - y - 6, size: 8, font: fontReg, color: GRAY_TEXT,
   });
   y += 12;
   page1.drawText(formatDateTime(ag.concluidoEm || ag.aprovadoEm), {
@@ -511,10 +516,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     digre: ag.motoristaDigre || "",
     timestamp: encerramento?.dataHora || ag.concluidoEm || Date.now(),
   });
-  y2 += condAssLabelH + condAssBoxH + 4;
+  // FIX (William 2026-09-20 v71): nome do condutor fica LOGO abaixo do
+  // box de assinatura (3pt de gap), igual ao do EXPEDIDOR.
+  y2 += condAssLabelH + condAssBoxH + 3;
   // Nome do condutor
   page2.drawText(condutorTexto, {
-    x: M, y: A4_H - y2 - 12, size: 10, font: fontBold, color: BLACK,
+    x: M, y: A4_H - y2 - 10, size: 10, font: fontBold, color: BLACK,
   });
   y2 += 16;
 
