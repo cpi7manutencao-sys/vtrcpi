@@ -1,78 +1,96 @@
 // ============================================================
-// mailer.ts - Helper de envio de email via SMTP (Gmail).
-// Carrega config do .env (SMTP_HOST, SMTP_PORT, SMTP_USER, etc).
-// Pool de conexoes (reuso) com nodemailer.
-// Logs detalhados pra debug (sucesso OU erro).
+// mailer.ts - Envio de email via Gmail API
 //
-// IMPORTANTE: nodemailer nao funciona em Vercel Serverless sem config
-// adicional. Em prod (Vercel), email e mockado.
+// FIX (William 2026-09-20 v73): trocar SMTP/nodemailer (que NAO
+// funciona em Vercel Serverless - deps nativas) por Gmail API
+// direta via fetch HTTP.
+//
+// Como funciona:
+//   1. Pega access_token do refresh_token (GOOGLE_REFRESH_TOKEN env var)
+//   2. Renova access_token a cada envio (expires em 1h)
+//   3. Envia via POST /gmail/v1/users/me/messages/send com base64url do RFC 2822
+//
+// SETUP ONE-TIME:
+//   Acesse https://vtrcpi-five.vercel.app/api/auth/google/gmail-setup
+//   no navegador (logado na cpi7manutencao@gmail.com), copie o
+//   refresh_token e adicione GOOGLE_REFRESH_TOKEN no Vercel env.
 // ============================================================
 
-import { safeRequire } from "./safe-load";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
+const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN || "";
+const FROM_NAME = process.env.SMTP_FROM_NAME || "Sistema de Viaturas CPI-7";
+const FROM_EMAIL = process.env.SMTP_FROM_EMAIL || "cpi7manutencao@gmail.com";
 
-const nodemailer = safeRequire("nodemailer");
-if (!nodemailer) {
-  console.warn("[mailer] nodemailer nao disponivel (Vercel/Serverless)");
+let _accessToken: string | null = null;
+let _accessTokenExp: number = 0;
+
+// Renova o access_token usando o refresh_token. Cache em memoria
+// ate expirar (5min antes pra evitar race condition).
+async function getAccessToken(): Promise<string> {
+  if (_accessToken && Date.now() < _accessTokenExp - 5 * 60 * 1000) {
+    return _accessToken;
+  }
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REFRESH_TOKEN) {
+    throw new Error("GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN nao configurados");
+  }
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      refresh_token: GOOGLE_REFRESH_TOKEN,
+      grant_type: "refresh_token",
+    }).toString(),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Falha ao renovar access_token (${res.status}): ${txt}`);
+  }
+  const json = (await res.json()) as { access_token: string; expires_in: number };
+  _accessToken = json.access_token;
+  _accessTokenExp = Date.now() + json.expires_in * 1000;
+  console.log(`[mailer] access_token renovado (expira em ${json.expires_in}s)`);
+  return _accessToken;
 }
 
-let transporter: any = null;
-let transporterInitAt: number | null = null;
-let transporterError: string | null = null;
-
-function readEnv(): {
-  host: string;
-  port: number;
-  secure: boolean;
-  user: string;
-  pass: string;
-  fromName: string;
-} {
-  return {
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: parseInt(process.env.SMTP_PORT || "465", 10),
-    secure: (process.env.SMTP_SECURE || "true") === "true",
-    user: process.env.SMTP_USER || "",
-    pass: (process.env.SMTP_PASS || "").replace(/\s+/g, ""),
-    fromName: process.env.SMTP_FROM_NAME || "Sistema de Viaturas CPI-7",
-  };
-}
-
-export function getTransporter(): any {
-  if (transporter) return transporter;
-  if (!nodemailer) {
-    if (!transporterError) {
-      transporterError = "nodemailer nao disponivel";
-      console.log(`[mailer] ${transporterError}`);
-    }
-    return null;
-  }
-  const env = readEnv();
-  if (!env.user || !env.pass) {
-    if (!transporterError) {
-      transporterError = "SMTP_USER ou SMTP_PASS nao configurados no .env";
-      console.log(`[mailer] ${transporterError}`);
-    }
-    return null;
-  }
-  try {
-    transporter = nodemailer.createTransport({
-      host: env.host,
-      port: env.port,
-      secure: env.secure,
-      auth: { user: env.user, pass: env.pass },
-      pool: true,
-      maxConnections: 3,
-      connectionTimeout: 10_000,
-      socketTimeout: 15_000,
-    });
-    transporterInitAt = Date.now();
-    console.log(`[mailer] transporter criado (host=${env.host}:${env.port} user=${env.user})`);
-    return transporter;
-  } catch (e: any) {
-    transporterError = e.message;
-    console.log(`[mailer] falha ao criar transporter: ${e.message}`);
-    return null;
-  }
+// Monta a mensagem RFC 2822 e converte pra base64url (Gmail API exige)
+function buildRawMessage(opts: { to: string; subject: string; text: string; html?: string; replyTo?: string }): string {
+  const from = `"${FROM_NAME}" <${FROM_EMAIL}>`;
+  const headers = [
+    `From: ${from}`,
+    `To: ${opts.to}`,
+    opts.replyTo ? `Reply-To: ${opts.replyTo}` : "",
+    `Subject: =?UTF-8?B?${Buffer.from(opts.subject).toString("base64")}?=`, // subject encoded pra suportar acentos
+    "MIME-Version: 1.0",
+    opts.html
+      ? `Content-Type: multipart/alternative; boundary="vtr-boundary-001"`
+      : `Content-Type: text/plain; charset=UTF-8`,
+  ].filter(Boolean).join("\r\n");
+  const body = opts.html
+    ? [
+        "--vtr-boundary-001",
+        "Content-Type: text/plain; charset=UTF-8",
+        "",
+        opts.text,
+        "",
+        "--vtr-boundary-001",
+        "Content-Type: text/html; charset=UTF-8",
+        "",
+        opts.html,
+        "",
+        "--vtr-boundary-001--",
+        "",
+      ].join("\r\n")
+    : opts.text;
+  const msg = `${headers}\r\n\r\n${body}`;
+  // Gmail API usa base64url (sem + e /, com - e _)
+  return Buffer.from(msg)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 export type SendEmailParams = {
@@ -89,48 +107,46 @@ export type SendEmailResult = {
   error?: string;
 };
 
+export function isMailerConfigured(): boolean {
+  return !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && GOOGLE_REFRESH_TOKEN);
+}
+
 export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
-  const isMock =
-    (process.env.SMTP_MOCK || "").toLowerCase() === "true" ||
-    (process.env.NODE_ENV || "").toLowerCase() === "development";
-  if (isMock || !nodemailer) {
-    const fakeId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@mock.local>`;
-    console.log(`[mailer][MOCK] email NAO enviado (DEV mode ou nodemailer indisponivel)`);
+  if (!isMailerConfigured()) {
+    console.log("[mailer] Gmail API nao configurada (faltam GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN) - email NAO enviado");
     console.log(`[mailer][MOCK]   to:      ${params.to}`);
     console.log(`[mailer][MOCK]   subject: ${params.subject}`);
-    return { ok: true, messageId: fakeId };
-  }
-
-  const t = getTransporter();
-  const env = readEnv();
-  if (!t) {
-    return { ok: false, error: transporterError || "transporter indisponivel" };
+    return { ok: false, error: "Gmail API nao configurada (faltam GOOGLE_REFRESH_TOKEN)" };
   }
   if (!params.to) {
     return { ok: false, error: "parametro 'to' vazio" };
   }
   try {
-    const from = `"${env.fromName}" <${env.user}>`;
-    const info = await t.sendMail({
-      from,
-      to: params.to,
-      replyTo: params.replyTo || env.user,
-      subject: params.subject,
-      text: params.text,
-      html: params.html,
+    const accessToken = await getAccessToken();
+    const raw = buildRawMessage(params);
+    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ raw }),
     });
-    console.log(`[mailer] enviado pra ${params.to} - messageId=${info.messageId}`);
-    return { ok: true, messageId: info.messageId };
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.log(`[mailer] Gmail API erro (${res.status}): ${errBody}`);
+      return { ok: false, error: `Gmail API ${res.status}: ${errBody.substring(0, 200)}` };
+    }
+    const json = (await res.json()) as { id: string; threadId: string };
+    console.log(`[mailer] enviado pra ${params.to} - messageId=${json.id}`);
+    return { ok: true, messageId: json.id };
   } catch (e: any) {
     console.log(`[mailer] erro ao enviar pra ${params.to}: ${e.message}`);
     return { ok: false, error: e.message };
   }
 }
 
-export function isMailerConfigured(): boolean {
-  const isMock =
-    (process.env.SMTP_MOCK || "").toLowerCase() === "true" ||
-    (process.env.NODE_ENV || "").toLowerCase() === "development";
-  if (isMock) return true;
-  return !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+// Mantido pra compat (nao faz nada agora)
+export function getTransporter(): null {
+  return null;
 }

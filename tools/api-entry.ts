@@ -10,6 +10,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import * as health from "../internal/handlers/health";
 import * as authStart from "../internal/auth/google/start";
 import * as authCallback from "../internal/auth/google/callback";
+import * as gmailSetup from "../internal/auth/google/gmail-setup";
 import * as authMe from "../internal/auth/me";
 import * as authRefresh from "../internal/auth/refresh";
 
@@ -87,6 +88,7 @@ const routes: Record<string, HandlerModule> = {
   "/api/health": health as HandlerModule,
   "/api/auth/google/start": authStart as HandlerModule,
   "/api/auth/google/callback": authCallback as HandlerModule,
+  "/api/auth/google/gmail-setup": gmailSetup as HandlerModule,
   "/api/auth/me": authMe as HandlerModule,
   "/api/auth/refresh": authRefresh as HandlerModule,
 
