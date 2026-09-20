@@ -3,10 +3,58 @@
 // ============================================================
 
 import { query, sql, type QueryResult } from "./db";
+import { cache, CACHE_TTL } from "./cache";
 
 const isSqlite =
   (process.env.POSTGRES_URL || "").startsWith("sqlite://") ||
   !process.env.POSTGRES_URL;
+
+/**
+ * FIX (William 2026-09-20): Pega TODAS as units com cache.
+ * Units sao imutaveis em runtime (so mudam via admin, raro).
+ * Cache TTL 10min evita repetir a query SQL em cada request.
+ * Cada chamada recursiva de getUserUnidadesAutorizadas faz 1 query
+ * `SELECT id FROM units WHERE parentUnit = X` - sem cache, isso vira
+ * N+1 e pode fazer 100+ queries pra um user com 50 unidades.
+ */
+export async function getAllUnitsCached(): Promise<any[]> {
+  const cached = cache.get<any[]>("units:all");
+  if (cached) return cached;
+
+  const r = await sql`SELECT * FROM units WHERE active = TRUE`;
+  const units = r.rows;
+  cache.set("units:all", units, CACHE_TTL.UNITS);
+  return units;
+}
+
+/**
+ * FIX (William 2026-09-20): Versao cacheada de getDescendantsRecursivo.
+ * Usa a lista de units em cache pra evitar N+1 SQL.
+ *
+ * Retorna Set<number> com todos os descendentes da matriz.
+ */
+export function getDescendantsFromCachedUnits(
+  units: any[],
+  matrizId: number
+): Set<number> {
+  const byParent = new Map<number, number[]>();
+  for (const u of units) {
+    if (u.parentUnit != null) {
+      const parent = Number(u.parentUnit);
+      if (!byParent.has(parent)) byParent.set(parent, []);
+      byParent.get(parent)!.push(Number(u.id));
+    }
+  }
+  const visited = new Set<number>();
+  function expand(id: number) {
+    if (visited.has(id)) return;
+    visited.add(id);
+    const filhas = byParent.get(id) || [];
+    for (const f of filhas) expand(f);
+  }
+  expand(matrizId);
+  return visited;
+}
 
 /**
  * Busca user por CPF (limpo, sem pontuacao).
@@ -34,6 +82,8 @@ export async function getUserById(userId: number): Promise<any> {
  * FIX (William 2026-08-21): alem da hierarquia tecnica (parentUnit),
  * tambem inclui unidades subordinadas via commandUnit.
  *
+ * FIX (William 2026-09-20): usa cache de units pra evitar N+1 SQL.
+ *
  * clone de getUserUnidadesAutorizadas do Convex.
  */
 export async function getUserUnidadesAutorizadas(
@@ -41,60 +91,76 @@ export async function getUserUnidadesAutorizadas(
 ): Promise<number[]> {
   if (!unidadesDiretas || unidadesDiretas.length === 0) return [];
 
+  // FIX (William 2026-09-20): tenta cache primeiro
+  const cacheKey = "authorized:" + [...unidadesDiretas].sort((a, b) => a - b).join(",");
+  const cached = cache.get<number[]>(cacheKey);
+  if (cached) return cached;
+
+  // FIX (William 2026-09-20): carrega units via cache (TTL 10min)
+  const units = await getAllUnitsCached();
+  const unitsByParent = new Map<number, number[]>();
+  const unitsByCmd = new Map<number, number[]>();
+  const unitsById = new Map<number, any>();
+  for (const u of units) {
+    const id = Number(u.id);
+    unitsById.set(id, u);
+    if (u.parentUnit != null) {
+      const parent = Number(u.parentUnit);
+      if (!unitsByParent.has(parent)) unitsByParent.set(parent, []);
+      unitsByParent.get(parent)!.push(id);
+    }
+    // commandUnit: so conta se NAO aponta pra propria unidade
+    if (u.commandUnit != null && Number(u.commandUnit) !== id) {
+      const cmd = Number(u.commandUnit);
+      if (!unitsByCmd.has(cmd)) unitsByCmd.set(cmd, []);
+      unitsByCmd.get(cmd)!.push(id);
+    }
+  }
+
   const resultado = new Set<number>();
 
+  function expand(id: number, visited: Set<number>) {
+    if (visited.has(id)) return;
+    visited.add(id);
+    resultado.add(id);
+    // parentUnit (recursivo)
+    const filhas = unitsByParent.get(id) || [];
+    for (const f of filhas) expand(f, visited);
+    // commandUnit (1 nivel soh - sem recursao pra evitar loop)
+    const subordinadas = unitsByCmd.get(id) || [];
+    for (const s of subordinadas) {
+      if (!visited.has(s)) {
+        resultado.add(s);
+        // Nao recursa em commandUnit - evita loop
+      }
+    }
+  }
+
   for (const unidadeId of unidadesDiretas) {
-    await adicionarArvoreCompleta(unidadeId, resultado);
+    expand(unidadeId, new Set());
   }
 
-  return Array.from(resultado);
-}
-
-async function adicionarArvoreCompleta(
-  unidadeId: number,
-  resultado: Set<number>
-): Promise<void> {
-  if (resultado.has(unidadeId)) return;
-  resultado.add(unidadeId);
-
-  // 1) Descendentes tecnicos (parentUnit)
-  const filhas = await sql`SELECT id FROM units WHERE parentUnit = ${unidadeId} AND active = TRUE`;
-  for (const f of filhas.rows) {
-    await adicionarArvoreCompleta(f.id, resultado);
-  }
-
-  // 2) Subordinadas funcionais (commandUnit)
-  // FIX (William 2026-09-20): ignora commandUnit que aponta pra propria
-  // unidade (auto-ref do backup - todas as 10 matrizes tem commandUnit=11).
-  // Sem essa proteção, a recursao explodia e retornava TODAS as 116 unidades.
-  const subordinadas = await sql`SELECT id, commandUnit FROM units WHERE commandUnit = ${unidadeId} AND commandUnit != id AND active = TRUE`;
-  for (const s of subordinadas.rows) {
-    await adicionarArvoreCompleta(s.id, resultado);
-  }
+  const result = Array.from(resultado);
+  cache.set(cacheKey, result, CACHE_TTL.HIERARCHY);
+  return result;
 }
 
 /**
  * Recursao SOMENTE por parentUnit (hierarquia tecnica).
+ * FIX (William 2026-09-20): usa cache de units pra evitar N+1 SQL.
  * clone de getUnidadesDescendentesTecnicos.
  */
 export async function getUnidadesDescendentesTecnicos(
   unidadeId: number
 ): Promise<number[]> {
-  const resultado = new Set<number>();
-  await adicionarArvoreTecnica(unidadeId, resultado);
-  return Array.from(resultado);
-}
+  const cacheKey = "desc:tecnico:" + unidadeId;
+  const cached = cache.get<number[]>(cacheKey);
+  if (cached) return cached;
 
-async function adicionarArvoreTecnica(
-  unidadeId: number,
-  resultado: Set<number>
-): Promise<void> {
-  if (resultado.has(unidadeId)) return;
-  resultado.add(unidadeId);
-  const filhas = await sql`SELECT id FROM units WHERE parentUnit = ${unidadeId} AND active = TRUE`;
-  for (const f of filhas.rows) {
-    await adicionarArvoreTecnica(f.id, resultado);
-  }
+  const units = await getAllUnitsCached();
+  const result = Array.from(getDescendantsFromCachedUnits(units, unidadeId));
+  cache.set(cacheKey, result, CACHE_TTL.HIERARCHY);
+  return result;
 }
 
 /**

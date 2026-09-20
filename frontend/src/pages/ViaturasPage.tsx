@@ -19,6 +19,10 @@ export default function ViaturasPage() {
   // FIX (William 2026-08-18): filtra uma subordinada (filha) especifica
   // SÓ aparece se a unidade selecionada tem filhas
   const [filtroSubordinada, setFiltroSubordinada] = useState<string>('')
+  // FIX (William 2026-09-20): paginacao client-side pra evitar render de 1310 rows
+  // (sem isso, o navegador trava ao carregar a pagina de Viaturas/Mapa Geral)
+  const [paginaAtual, setPaginaAtual] = useState(1)
+  const [tamanhoPagina, setTamanhoPagina] = useState(50)
 
   // Modal de cadastro/edicao
   const [showForm, setShowForm] = useState(false)
@@ -59,6 +63,8 @@ export default function ViaturasPage() {
   }
 
   useEffect(() => { carregar() }, [filtroAtivo, filtroTipo, filtroOpm, user?.cpf])
+  // FIX (William 2026-09-20): resetar paginacao quando filtros mudam
+  useEffect(() => { setPaginaAtual(1) }, [filtroAtivo, filtroTipo, filtroOpm, filtroSubordinada, filtroBusca])
 
   // SÓ MATRIZES no filtro: code termina em "0000"
   const matrizes = useMemo(() => {
@@ -205,6 +211,14 @@ export default function ViaturasPage() {
     }
     return result
   }, [viaturas, filtroBusca, filtroSubordinada])
+
+  // FIX (William 2026-09-20): paginacao client-side. Sem isso, 1310 <tr> no DOM
+  // trava o navegador (5+ segundos pra carregar). Mostra 50/pagina por padrao.
+  const totalPaginas = Math.max(1, Math.ceil(viaturasFiltradas.length / tamanhoPagina))
+  const viaturasPaginadas = useMemo(() => {
+    const ini = (paginaAtual - 1) * tamanhoPagina
+    return viaturasFiltradas.slice(ini, ini + tamanhoPagina)
+  }, [viaturasFiltradas, paginaAtual, tamanhoPagina])
 
   // Handler do checkbox inline (marcar/desmarcar como baixada)
   // FIX (William 2026-08-24): agora usa mutation dedicada que registra historico
@@ -707,7 +721,7 @@ export default function ViaturasPage() {
                 </tr>
               </thead>
               <tbody>
-                {viaturasFiltradas.map(v => {
+                {viaturasPaginadas.map(v => {
                   const unit = v.opm ? units.find(u => u.id === v.opm.id) : null
                   // COR DA LINHA por status (William 2026-08-17)
                   // - Operando: verde bem sutil
@@ -796,6 +810,56 @@ export default function ViaturasPage() {
                 })}
               </tbody>
             </table>
+          )}
+
+          {/* FIX (William 2026-09-20): Controles de paginacao */}
+          {viaturasFiltradas.length > tamanhoPagina && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              marginTop: 12, padding: '8px 12px', background: '#f5f5f5', borderRadius: 4,
+              fontSize: 13,
+            }}>
+              <span style={{ color: '#666' }}>
+                Mostrando <strong>{(paginaAtual - 1) * tamanhoPagina + 1}</strong>-
+                <strong>{Math.min(paginaAtual * tamanhoPagina, viaturasFiltradas.length)}</strong> de{' '}
+                <strong>{viaturasFiltradas.length}</strong> viaturas
+              </span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  disabled={paginaAtual === 1}
+                  onClick={() => setPaginaAtual(1)}
+                >«</button>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  disabled={paginaAtual === 1}
+                  onClick={() => setPaginaAtual(paginaAtual - 1)}
+                >‹ Anterior</button>
+                <span style={{ padding: '0 8px' }}>
+                  Página <strong>{paginaAtual}</strong> de <strong>{totalPaginas}</strong>
+                </span>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  disabled={paginaAtual === totalPaginas}
+                  onClick={() => setPaginaAtual(paginaAtual + 1)}
+                >Próxima ›</button>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  disabled={paginaAtual === totalPaginas}
+                  onClick={() => setPaginaAtual(totalPaginas)}
+                >»</button>
+                <select
+                  value={tamanhoPagina}
+                  onChange={e => { setTamanhoPagina(Number(e.target.value)); setPaginaAtual(1) }}
+                  style={{ padding: '4px 8px', marginLeft: 8, borderRadius: 4, border: '1px solid #ccc' }}
+                >
+                  <option value={25}>25/pág</option>
+                  <option value={50}>50/pág</option>
+                  <option value={100}>100/pág</option>
+                  <option value={200}>200/pág</option>
+                </select>
+              </div>
+            </div>
           )}
         </div>
       )}
