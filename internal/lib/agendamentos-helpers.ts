@@ -57,16 +57,14 @@ async function adicionarArvoreCompleta(
   if (resultado.has(unidadeId)) return;
   resultado.add(unidadeId);
 
-  // 1) Descendentes tecnicos (parentUnit)
+  // FIX (William 2026-09-20): so usar parentUnit pra hierarquia.
+  // O campo commandUnit foi populado como auto-referencia (todas as matrizes
+  // tem commandUnit=11 = CPI-7), o que fazia a recursao explodir e retornar
+  // TODAS as 116 unidades pra qualquer gestor.
+  // Se a regra de sub-ordinacao funcional voltar a ser usada, ajustar o backup.
   const filhas = await sql`SELECT id FROM units WHERE parentUnit = ${unidadeId} AND active = TRUE`;
   for (const f of filhas.rows) {
     await adicionarArvoreCompleta(f.id, resultado);
-  }
-
-  // 2) Subordinadas funcionais (commandUnit)
-  const subordinadas = await sql`SELECT id FROM units WHERE commandUnit = ${unidadeId} AND active = TRUE`;
-  for (const s of subordinadas.rows) {
-    await adicionarArvoreCompleta(s.id, resultado);
   }
 }
 
