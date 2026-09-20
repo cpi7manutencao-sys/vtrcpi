@@ -433,20 +433,8 @@ export default function ViaturasPage() {
 
         <div style={{ flex: 1 }}></div>
 
-        {/* FIX (William 2026-09-15 v69): Badge visual de escopo - AGORA MUITO mais visivel */}
-        {(escopoInfo.lockedUnidade || escopoInfo.lockedSubordinada) && (
-          <span style={{
-            padding: '6px 12px',
-            background: '#e65100',
-            border: '2px solid #bf360c',
-            borderRadius: 6,
-            fontSize: 12,
-            color: 'white',
-            fontWeight: 700,
-          }} title="Seu escopo restringe os filtros de unidade. Você só vê as unidades que tem acesso.">
-            🔒 ESCOPO RESTRITO
-          </span>
-        )}
+        {/* FIX (William 2026-09-19): Badge de ESCOPO RESTRITO removido (sem funcao pratica).
+            O escopo ja eh aplicado nos filtros de unidade automaticamente. */}
 
         {/* FIX (William 2026-08-18): Busca livre por placa/prefixo/patrimonio */}
         <input

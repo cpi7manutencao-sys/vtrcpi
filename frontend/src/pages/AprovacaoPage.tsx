@@ -140,105 +140,118 @@ export default function AprovacaoPage() {
   }
 
   return (
-    <div className="page-container" style={{ padding: 24 }}>
-      <h1>👥 Aprovação de Usuários</h1>
-      <p style={{ color: "#666" }}>
-        {pending.length} usuário(s) aguardando aprovação
-      </p>
+    <div>
+      <div className="page-header">
+        <h1>Aprovação de Usuários</h1>
+        <p>{pending.length} usuário(s) aguardando aprovação. Defina o papel e a unidade, depois aprove ou rejeite.</p>
+      </div>
 
       {erro && <div className="alert alert-error">{erro}</div>}
 
       {pending.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", color: "#888" }}>
-          🎉 Nenhum usuário pendente!
+        <div className="card">
+          <p style={{ textAlign: "center", color: "#888", padding: 40 }}>
+            🎉 Nenhum usuário pendente!
+          </p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {pending.map((u) => {
-            const cfg = config[u.id] || { viaturasRole: "viewer", unitId: null };
-            const isThisProcessing = processing === u.id;
-            return (
-              <div
-                key={u.id}
-                style={{
-                  border: "1px solid #ddd",
-                  borderRadius: 8,
-                  padding: 16,
-                  background: "#fff",
-                }}
-              >
-                <div style={{ display: "flex", gap: 16 }}>
-                  {u.picture && (
-                    <img
-                      src={u.picture}
-                      alt={u.name}
-                      style={{ width: 56, height: 56, borderRadius: "50%" }}
-                    />
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: 0 }}>
-                      {u.postoGraduacao} {u.warName}
-                    </h3>
-                    <div style={{ color: "#666", fontSize: 14 }}>
-                      {u.name}
-                    </div>
-                    <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
-                      📧 {u.email} · 🆔 {u.cpf} · RE {u.re}
-                      {u.digre ? `-${u.digre}` : ""}
-                      {u.unit && ` · 📍 ${u.unit.name}`}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 12, marginTop: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-                  <div className="form-group" style={{ flex: "1 1 200px", margin: 0 }}>
-                    <label style={{ fontSize: 12 }}>Papel:</label>
-                    <select
-                      value={cfg.viaturasRole}
-                      onChange={(e) => setUserConfig(u.id, "viaturasRole", e.target.value)}
-                      style={{ width: "100%" }}
-                    >
-                      <option value="viewer">Viewer (só vê)</option>
-                      <option value="editor">Editor (CRUD viatura)</option>
-                      <option value="gestor">Gestor (aprova)</option>
-                      <option value="admin">Admin (tudo)</option>
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ flex: "2 1 300px", margin: 0 }}>
-                    <label style={{ fontSize: 12 }}>Unidade:</label>
-                    <select
-                      value={cfg.unitId ?? ""}
-                      onChange={(e) => setUserConfig(u.id, "unitId", e.target.value ? Number(e.target.value) : null)}
-                      style={{ width: "100%" }}
-                    >
-                      <option value="">— sem unidade —</option>
-                      {units.map((un) => (
-                        <option key={un.id} value={un.id}>
-                          {un.name} ({un.code})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      onClick={() => aprovar(u.id)}
-                      disabled={isThisProcessing}
-                      className="btn btn-primary"
-                    >
-                      ✅ Aprovar
-                    </button>
-                    <button
-                      onClick={() => rejeitar(u.id)}
-                      disabled={isThisProcessing}
-                      className="btn btn-danger"
-                    >
-                      ❌ Rejeitar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="card">
+          <p style={{ color: '#666', fontSize: 13 }}>
+            {pending.length} usuário(s) aguardando aprovação
+          </p>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Usuário</th>
+                <th>Identificação</th>
+                <th>Unidade atual</th>
+                <th>Papel a atribuir</th>
+                <th>Unidade a atribuir</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pending.map((u) => {
+                const cfg = config[u.id] || { viaturasRole: "viewer", unitId: null };
+                const isThisProcessing = processing === u.id;
+                return (
+                  <tr key={u.id}>
+                    <td>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        {u.picture && (
+                          <img
+                            src={u.picture}
+                            alt={u.name}
+                            style={{ width: 36, height: 36, borderRadius: "50%" }}
+                          />
+                        )}
+                        <div>
+                          <div style={{ fontWeight: 600 }}>
+                            {u.postoGraduacao} {u.warName}
+                          </div>
+                          <div style={{ fontSize: 12, color: "#666" }}>{u.name}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ fontSize: 12 }}>
+                      <div>📧 {u.email}</div>
+                      <div>🆔 CPF {u.cpf}</div>
+                      <div>RE {u.re}{u.digre ? `-${u.digre}` : ""}</div>
+                    </td>
+                    <td style={{ fontSize: 12 }}>
+                      {u.unit ? u.unit.name : <span style={{ color: "#999" }}>— sem unidade —</span>}
+                    </td>
+                    <td>
+                      <select
+                        value={cfg.viaturasRole}
+                        onChange={(e) => setUserConfig(u.id, "viaturasRole", e.target.value)}
+                        style={{ width: 130 }}
+                      >
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="gestor">Gestor</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        value={cfg.unitId ?? ""}
+                        onChange={(e) => setUserConfig(u.id, "unitId", e.target.value ? Number(e.target.value) : null)}
+                        style={{ width: 200 }}
+                      >
+                        <option value="">— sem unidade —</option>
+                        {units.map((un) => (
+                          <option key={un.id} value={un.id}>
+                            {un.sigla || un.name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          onClick={() => aprovar(u.id)}
+                          disabled={isThisProcessing}
+                          className="btn btn-primary"
+                          style={{ fontSize: 12, padding: "4px 10px" }}
+                        >
+                          ✅ Aprovar
+                        </button>
+                        <button
+                          onClick={() => rejeitar(u.id)}
+                          disabled={isThisProcessing}
+                          className="btn btn-danger"
+                          style={{ fontSize: 12, padding: "4px 10px" }}
+                        >
+                          ❌ Rejeitar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

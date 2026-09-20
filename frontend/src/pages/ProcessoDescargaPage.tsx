@@ -368,20 +368,8 @@ export default function ProcessoDescargaPage() {
             </select>
           )}
 
-          {/* Badge visual de escopo restrito (igual ViaturasPage v69) */}
-          {(escopoInfo.lockedUnidade || escopoInfo.lockedSubordinada) && (
-            <span style={{
-              padding: '6px 12px',
-              background: '#e65100',
-              border: '2px solid #bf360c',
-              borderRadius: 6,
-              fontSize: 12,
-              color: 'white',
-              fontWeight: 700,
-            }} title="Seu escopo restringe os filtros de unidade. Você só vê as unidades que tem acesso.">
-              🔒 ESCOPO RESTRITO
-            </span>
-          )}
+          {/* FIX (William 2026-09-19): Badge de ESCOPO RESTRITO removido (sem funcao pratica).
+              O escopo ja eh aplicado nos filtros de unidade automaticamente. */}
 
           <div style={{ flex: 1 }}></div>
 
