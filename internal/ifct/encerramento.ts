@@ -39,6 +39,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ ok: false, error: "Hodometro de retorno (" + hodometroRetorno + ") eh menor que o de partida (" + hodometroPartida + ")" });
     }
   }
+  // FIX (William 2026-09-20): converte undefined pra null explicitamente.
+  // Caso contrario o pg manda "could not determine data type of parameter $N"
+  // pq template literals JS transformam undefined em texto 'undefined' e o
+  // driver pg nao sabe o tipo. Mesma situacao pode acontecer com
+  // defeitosVerificados, observacoes, etc. (mas esses ja tem || null).
+  const diferencaSafe: number | null = diferenca ?? null;
 
   const ts = now();
   const ipOrigem = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || null;
@@ -69,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       consideracoesVeiculo, assinaturaCondutorSvg,
       ipOrigem, userAgentOrigem, criadoEm
     ) VALUES (
-      ${ag.id}, ${ts}, ${typeof hodometroPartida === "number" ? hodometroPartida : null}, ${typeof hodometroRetorno === "number" ? hodometroRetorno : null}, ${diferenca},
+      ${ag.id}, ${ts}, ${typeof hodometroPartida === "number" ? hodometroPartida : null}, ${typeof hodometroRetorno === "number" ? hodometroRetorno : null}, ${diferencaSafe},
       ${partidaConfirmadaEm},
       ${defeitosVerificados || null}, ${observacoes || null},
       ${novaApresentacaoData || null}, ${novaApresentacaoHora || null}, ${novaApresentacaoLocal || null},

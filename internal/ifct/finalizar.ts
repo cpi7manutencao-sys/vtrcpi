@@ -7,7 +7,7 @@
 // ============================================================
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql, now } from "../lib/db";
+import { sql, query, now } from "../lib/db";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -43,9 +43,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // FIX (William 2026-09-07 v2): copia odometros do encerramento pro agendamento
   // (motorista eh quem preenche, nao mais o gestor)
-  const hodometroPartida = enc?.hodometroPartida ?? ag.odometroRetirada ?? null;
-  const hodometroRetorno = enc?.hodometroRetorno ?? ag.odometroDevolucao ?? null;
-  const kmRodados = enc?.hodometroDiferenca ?? ag.kmRodados ?? null;
+  // FIX (William 2026-09-20): converte undefined pra null explicitamente.
+  // Caso contrario o pg manda "could not determine data type of parameter $N"
+  // pq template literals JS transformam undefined em texto 'undefined' e o
+  // driver pg nao sabe o tipo do parametro. Usamos `?? null` no FINAL
+  // da cadeia pra garantir que NUNCA sai undefined.
+  const safeNum = (v: any): number | null => (v == null ? null : Number(v));
+  const hodometroPartida = safeNum(enc?.hodometroPartida ?? ag.odometroRetirada);
+  const hodometroRetorno = safeNum(enc?.hodometroRetorno ?? ag.odometroDevolucao);
+  const kmRodados = safeNum(enc?.hodometroDiferenca ?? ag.kmRodados);
 
   // FIX (William 2026-09-07): ronda nao eh mais obrigatoria nem contada aqui
   // (rondas sao registradas por QR no painel da viatura, via /api/rondas/salvar)
@@ -56,18 +62,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
 
   const ts = now();
-  await sql`
+  // FIX (William 2026-09-20): use query() em vez de sql template tag,
+  // porque pg em template tag tem dificuldade com parametros null/undefined
+  // na clausula CASE WHEN. Vamos montar tudo explicitamente.
+  // Usamos placeholders diferentes pra cada uso do mesmo parametro, senao
+  // o pg reclama "inconsistent types deduced for parameter $N".
+  const sqlFinal = `
     UPDATE agendamentos
-    SET ifctStatus = 'preenchido',
-        ifctData = ${JSON.stringify(ifctData)},
-        odometroRetirada = ${hodometroPartida},
-        odometroDevolucao = ${hodometroRetorno},
-        odometroDevolucaoEm = ${ts},
-        odometroRetiradaEm = CASE WHEN ${hodometroPartida} IS NOT NULL THEN COALESCE(odometroRetiradaEm, ${ts}) ELSE odometroRetiradaEm END,
-        kmRodados = ${kmRodados},
-        atualizadoEm = ${ts}
-    WHERE id = ${ag.id}
+    SET ifctStatus = $1,
+        ifctData = $2,
+        odometroRetirada = $3,
+        odometroDevolucao = $4,
+        odometroDevolucaoEm = $5,
+        odometroRetiradaEm = CASE WHEN $6::bigint IS NOT NULL THEN COALESCE(odometroRetiradaEm, $7::bigint) ELSE odometroRetiradaEm END,
+        kmRodados = $8,
+        atualizadoEm = $9
+    WHERE id = $10
   `;
+  await query(sqlFinal, [
+    'preenchido',                // $1 ifctStatus
+    JSON.stringify(ifctData),    // $2 ifctData
+    hodometroPartida,            // $3 odometroRetirada
+    hodometroRetorno,            // $4 odometroDevolucao
+    ts,                          // $5 odometroDevolucaoEm
+    hodometroPartida,            // $6 (mesmo que $3, placeholder separado pro CASE WHEN)
+    ts,                          // $7 (mesmo que $5, placeholder separado pro CASE WHEN)
+    kmRodados,                   // $8 kmRodados
+    ts,                          // $9 atualizadoEm
+    ag.id,                       // $10 WHERE id
+  ]);
 
   return res.status(200).json({ ok: true, totalAbastecimentos, kmRodados });
 }
