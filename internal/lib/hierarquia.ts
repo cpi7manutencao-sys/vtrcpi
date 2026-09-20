@@ -1,31 +1,30 @@
 // ============================================================
 // api/_lib/hierarquia.ts
 // Helper pra resolver unidades autorizadas via hierarquia
-// parentUnit. Usado pela promocao de usuarios (v65).
+// commandUnit. Usado pela promocao de usuarios (v65).
 //
 // FIX (William 2026-09-14 v65): ao inves de salvar lista crua de unidades
 // em `unidadesGestor`/`unidadesEditor`, agora o admin escolhe apenas
 // a MATRIZ + (opcionalmente) QUAIS filhas-raiz. O backend expande
-// recursivamente via `parentUnit` pra pegar TODOS os descendentes.
+// recursivamente via `commandUnit` pra pegar TODOS os descendentes.
 //
-// FIX (William 2026-09-20): troquei de commandUnit pra parentUnit porque
-// no banco, TODAS as 10 matrizes tem commandUnit=11 (auto-referencia),
-// o que fazia a recursao explodir e atribuir TODAS as 116 unidades a qualquer
-// user promovido.
+// FIX (William 2026-09-20): protecao contra loop infinito quando commandUnit
+// aponta pra propria unidade (todas as matrizes tem commandUnit=11 no backup).
+// Agora ignora commandUnit que aponta pra propria unidade.
 //
 // Ex: PEDRO com matriz=12 e filhas=[]
-// -> expanded = [12, 21, 22, 23, 93] (todas com parentUnit=12 ou descendentes)
+// -> expanded = [12, 21, 22, 23, 93] (todas com commandUnit=12 ou descendentes)
 // ============================================================
 
 export type UnitLite = {
   id: number;
-  parentUnit: number | null;
+  commandUnit: number | null;
 };
 
 /**
  * Retorna Set de IDs: a propria matriz + todos os descendentes transitivos
- * (qualquer unit com parentUnit apontando pra matriz ou pra algum descendente).
- * Recursivo, com deteccao de ciclo.
+ * (qualquer unit com commandUnit apontando pra matriz ou pra algum descendente).
+ * Recursivo, com deteccao de ciclo e protecao contra auto-referencia.
  */
 export function getDescendantsRecursivo(units: UnitLite[], matrizId: number): Set<number> {
   const visited = new Set<number>();
@@ -33,7 +32,9 @@ export function getDescendantsRecursivo(units: UnitLite[], matrizId: number): Se
     if (visited.has(id)) return;
     visited.add(id);
     units.forEach(u => {
-      if (u.parentUnit === id && !visited.has(u.id)) {
+      // FIX (William 2026-09-20): ignora commandUnit que aponta pra propria
+      // unidade (auto-ref do backup) - evita loop infinito e explosão de 116 unidades
+      if (u.commandUnit && u.commandUnit !== u.id && u.commandUnit === id && !visited.has(u.id)) {
         expand(u.id);
       }
     });
