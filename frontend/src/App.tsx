@@ -75,9 +75,28 @@ export default function App() {
       {/* Fluxo de cadastro novo */}
       <Route path="/completar-cadastro" element={<CompletarCadastroPage />} />
       <Route path="/aguardando-aprovacao" element={<AguardandoAprovacaoPage />} />
-      <Route path="/aprovacao" element={<AprovacaoPage />} />
 
       {/* App principal */}
+      <Route
+        path="/aprovacao"
+        element={
+          <PrivateRoute>
+            <PrivateLayout>
+              <AprovacaoPage />
+            </PrivateLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/"
+        element={
+          <PrivateRoute>
+            <PrivateLayout>
+              <HomePage />
+            </PrivateLayout>
+          </PrivateRoute>
+        }
+      />
       <Route
         path="/"
         element={
