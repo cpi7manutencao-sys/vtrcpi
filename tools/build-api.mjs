@@ -34,11 +34,11 @@ await build({
     "@vercel/node",
     "better-sqlite3",
     "@electric-sql/pglite",
-    "pdfkit",
     "nodemailer",
-    "svg-to-pdfkit",
+    // pdfkit e svg-to-pdfkit REMOVIDOS em 2026-09-20 (binarios nativos).
+    // pdf.ts agora usa pdf-lib (puro JS), que e bundleado automaticamente.
     // Modulos puros JS sao bundleados (inlined) pra function ser auto-contida:
-    // jose, google-auth-library, pg
+    // jose, google-auth-library, pg, pdf-lib
     // (removido @vercel/postgres - trocado por pg)
   ],
   // Importante: external nao inclui nossas deps locais (internal/)
