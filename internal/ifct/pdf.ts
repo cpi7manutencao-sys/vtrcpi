@@ -17,36 +17,205 @@ import { createHash } from "node:crypto";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { sql } from "../lib/db";
 
+// FIX (William 2026-09-20 v70): brasao embedado como base64 no codigo
+// pra garantir que sempre funcione (readFileSync falha em Vercel por causa
+// do cwd diferente). 8KB JPEG = 11KB base64.
+const BRASAO_BASE64 =
+  "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsK";
+  "CwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQU";
+  "FBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCACCAHwDASIA";
+  "AhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQA";
+  "AAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3";
+  "ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWm";
+  "p6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEA";
+  "AwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSEx";
+  "BhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElK";
+  "U1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3";
+  "uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9U6KK";
+  "KACiiigAooooAK8v8TfHOz8M/HHwt8P7jT5vs2tWlwW1osot4L1djW9oST9+SMTtjqMQjB80EdD4";
+  "q+MXgLwLcGDxJ438OeHpwCxi1XVre2YAKGJw7g8Kyn6MD3r5d+LGh3Hi65+G8up6nLoOqeLG1fxU";
+  "hSCG3vIZ4ktJrGMTSB0tZba2hi82XhXFrMvJmAIB9o0V494D/ak+HviHwHous67418L+HtUuI2gv";
+  "rC91aK3NtewkJdQBZWV/3cmRyASCp6MK9X03VLLWbNLvT7uC+tXzsntpVkRsEg4ZSQcEEfUGgC1R";
+  "RRQAUUUUAFFFFABRRRQAUUUUAFfO37Vf7MPhb9oOfS5o7nTNO+J+mWss+iS3+2WO4hRl3pcW5yJY";
+  "VeWMhyjiKR0ba4ZopD4sftteAvh5pGoyQ6paGRrVJNI1XUJVi0vUpWmijkEEgJe4ECzwzy+SjZif";
+  "Me9gVX5x+FnxL1Lwf4r13xFqWv6HpniHQLO/h8Ua9quni+awuL2WzuANReF7dQ0KQ28ezzgTM9zb";
+  "W0TJaKAAemfDf44fELwHp15pOtaZpcuuaPFavrOh6nbx6bNDLNN9lV/tsKJbOkkgR4VhhmkkRinE";
+  "gVT4X8T/ANqXwVqPjXQfAVnbaivha9W90yzv7O5sxYWVjM8bXkSSu3lmCEW8M9u7GJI1MQkVYYtr";
+  "/QKeL/CvxKnsfFnxgs/B/iKHwXpGo6nfWU+glLrQ2up7X+zbea0uJJpI72SKGXMPBMjIqBsKzfMn";
+  "7QHiDTfFnxv8HWnjS70zSY724ubXX9mtGKz0iyUpHZ24IZfIRY7lT5twscbObmSEF3UKAfR7ftPe";
+  "V4P0aw8GX/h/wV4Lt7WytbS50/dr9/bWs8ptrArChEYdjFIvlq1wT5TLnzCqt1XwU/ZxEvjrSvit";
+  "8UUDeOXaVdC0a8uIpV0jzIlLhdiIhmIikfaiARq7rmRlaVvl74fa3pfgD4seFPiBNoCaprPhwpY6";
+  "lp3g3Q4o0lg1BfslmbUSQJNIzTPYxr9pmXy1ilWPKMgfp/Efxb1rxhrlh4f17xPLruv+GLg6zbrr";
+  "9vYXNlui+0W8V48Vjbxzwo0ckizTwPcGynhl3xxrEkkgB+jVFfK/w9/alv8AUfhzKNMtbLXvEf22";
+  "wj0231DWVeBkur+2tntZryGOQk2xvIgtwI5FuIJLWdXlaWUJ7/4G+I+i+P4Jhp8/k6naoj3uk3BV";
+  "bqz3lwhdATlHMb7JVLRyqpaN3XDEA6miiigAooooAKKKKACvnT9p34oaNZaXJbXuq2l14M03SNa1";
+  "nxDaW7if+0GsBbRrpcyqw/dvJeK0se4FxD5TgxyyA9T+0X48uPD2nWGhWMl4r3dpqGs6qumSmC9/";
+  "sexg8y6FtNuQRSySy2dsH3o6C6Z0ZGjDr+bX7UXw88RRfAbSNJi0wQTT3Ed3qqx2MdtqU0DaBpN5";
+  "dsLWMeVDELmxLz9GR1jb5l8wuAc78Uvi3pnxM1Kzt9btPFF/pcGm28ur63Da3tudV1e4YXWo26hr";
+  "VwYhNHp0CG5jk8mLSoRGjfu3T2b9n7xD+zx4YlvpdefxD4VtNL1CabRvC0PhjULh9Oh2oTdLfiwa";
+  "9idpjMysl0pMXk71U7o15nSNN1D4i674L+F+j6gmkax4x8Uag66pPAJorO1s7bz7lwpYbpcMgjUg";
+  "qTu3EADOVpfivw34g17xpHZfD/4h67p2m3U1rd+J7j4iTWWtXNtBKI5mj09Io7UkBD/o8gG7OM56";
+  "AHoPib4tfDnxx8cZpdO8Xal8OvhpAlmLW90fwjqsuqa9cRJOxYbrJk2pJf3X7yUO5keVmRy0MkPv";
+  "/gL9pj9lb4XeDdQ8N+HPtmn6E26PUoZPB2tTm4LDYftUklozysVwmZWY4AXoAK+dPiB4O8HeHvhf";
+  "8HPH3w2+JHijxbp134807w89l4g+yg2UU/mfaLeWKO3idJwVjOZNxAwV+V9zcV8Urfxdpvwe+NPj";
+  "fR5orDQPDOsWqXhu7Tzf7Vmmu4oxbRPvHliNZ1ld9pJJhVTgyUAdp+0Zr3wl1qystV+E/j3xHb+J";
+  "dCjS+8O+FNc8O6/Lp1rLG8TRmyb7N5lqqiEBIVY22VjBjRQTXZ/tCftDfBHx34d0zxj4QTUP+ExO";
+  "oW101ldeHdQt7d7k7FM0jtptwguItsZaa38ud44PLWbCoK5r9mHTfDf7TnxW8PfabzxFptre+AU1";
+  "Swm0jVmtTay21+9tdxSJ5f7zLToofIGIG+XDA15VLqzX0uv6P4c+Fviy70fRLu5lt7w/EyKNiIr7";
+  "7ALhYpbR1Dec4G11Yc5IK9QDz7w58VNa8HfGPw9460vSdR0KIXcd74j0jRtE1M3M9vHqwvZlvXvX";
+  "uHWW4FvbyKYriSNSSrbPMlY/cfwh+L/hi++IWoaT4L103yaDqNrrHhiWS1W2ml0PVdSit9T0yS08";
+  "qN4ooJ2jkiEgjc7rQgNCuZfC/Hq6p8K9f0PUtY1KTWvB3xX8KveeH9dvIIrW7guBarIlneLGwiMh";
+  "jeNVeNVDuwAT7235x0zU9V0b9qvUZ9Gurax1a9ttE0rTrm9KC3W9mismg85t6yJF+5bc8YY4G0rt";
+  "c0AfvLo+s2HiHSrTU9KvrbU9Nu4lmtryzmWWGaNhlXR1JDKRyCDg1cr5R/Z98eadoPjLVv7MAt/B";
+  "11Pp2nOPMziS6tbe50q+KKixoZ47prKVgWLS2tqRnzHYfV1ABRRRQAUUUUAfJX7cmpR6HpmsG+MN";
+  "tputeEL/AE+HUJb+OxEN5FdWkyIs0pVPO8ozzRxs6iQ2rqcDmvh/xx8YfD/jr4/fEv4heMbmHU/B";
+  "ltBNe6VohjSRr+x401JoQ7KxaSe004yI3yyI0y7TGCzfQQ8NP8fPhl41kvtPjNz4xazttUtLt5LW";
+  "AS6xptle6XdSEB981nqEiWiSKhK2zYdZPKAPyv8ADP4P65rvhi5+JafECDwzYw6ZdTrq89rHL/ZI";
+  "djplxqSyRTHdLdGzFvHNIsbyyC8nxCbeOSQA7y8m8R+DLXwr8RvB00B8aeDvE921lDe4NteQ3MIi";
+  "uYJM4x5iqoD5BUbsEEhl9v8ABkvwQ/a68Yaze+E9Uu/gf8d75JLXX/DeoRKwv5toMwktXKpdbdkh";
+  "8yBoZurvtzivHNO8NeKviVeaH4D8I3Fhp+q6rd65q0S39uZUnlsYIGitCd6eWkjT4MgyV2KcY3A4";
+  "3j34deF/jh4r8ZvqumT6N4n0/SY5zvUwapo95Ei4SZeCdpBXDDa64ZDgo4ANrx58Fb34dfEz4a6N";
+  "8QdHbR/Edtqcc9vfaZeSHSNfeBg1vOnQNNCGkTZKqyqrAZeMoR3Pxm/5RwftGf8AY5Qf+lel1znj";
+  "7x94l8Qf8E4PiJZeONck8R6/4J1bRpPD3i2dTFeCZ5rZ1TzNxb7XFG8uXB3GGeJics1dT8clC/8A";
+  "BOz9pMAAAeNYgAO3+maXQBhf8EqP+SgfD7/sm2t/+pFHXCeDfiN4e8O6/wCP9E1C+lg1hn1GxWwW";
+  "ynkmef8A4ShLny0RYyXbyVZ8LngEdQRXd/8ABKj/AJKB8Pv+yba3/wCpFHXl/wDbvxQ8f6p448R3";
+  "Hxx+I2lRQ+Pbzw/Bpmla/cW8EUEfzAqA+AcMFACgDbnnPAB6f+2b4qST4UfstfBiK23eOdKtdM8Q";
+  "axp0hVJtMgs9OxIsoYjaxXz22fePkHjJUN876Rc2Vt8W/i6L1rN0n8L6ZALO/tkKX3+j2kjwJOzp";
+  "5EmyJ5MltsiRSxnBdWX1/wAIfCrRfhv4j+KBsZdQ1TUptIcT6xrV19pvrgPEJGDyYAOWx0AztXOS";
+  "Aa4X4TeFLvxl8f8A4saW+pXmieHbzwrpdrq2sWEo8zSleKy8i+aJhtkhgnWKSQh4njQNIJAqOrAH";
+  "tn7GHxBs/HPh7VrGPVE1bWLTTfBHh8XNvbspF9aX7y2oz5jJIsKPtZkT51sLiVlC8y/qRX5Rfs0/";
+  "C7VPgunxSXxuHi1jT7h9DvNT0qRv3VpZWN1cXs9uUYy4ezitLeO5ZUkgOouEVWYiT9Bf2Z9ZF58M";
+  "4NGWSeeLw68el289wrb3tvs0M9sGYk+YyQXEMbyBmDvG7ZBJUAHrFFFFABRRRQB+c3xB1y2+Bwsb";
+  "HUbtYNRh0nTvh9PqEumT3Rt9Y0m6tLvSrlZVLRRiW0vDf+SQM/ZWQCSQMq+c/s73GmWvwU0K21M3";
+  "ENqtrfa7run3NpJdDxLrOos0uiWFsMrEJIIgl40b7VjMiThdhlnjn8UeDdZ/ac+Cmnu0HiDUPHMl";
+  "zpcVje69Hp4u5tTito7+O1u4XcQTwSWd9czW0kpjdB50Mjt5iRzeV/Bl7zxF8HdS0y60aYzvqiw3";
+  "15c3lxcje97p9pBYItsiNaRpDA1wZIh5bvp9mgk225t4gDo28XeMfhhq3grxx4H1LwxBrml6nrOn";
+  "x2niV5Ct39rhtlzEiYZynlFjgjBKZDAkVtfEDxB8U/GvjHVR400P4dfEO+0my8yTU0S/0DVJrQpz";
+  "ALqyljYxhnLeVIWU/MeDtwWaadN4M1k3OtDRpbu6l0y6uNViiWwis53XdLBMQHW5geNdQYKWBXSY";
+  "QVQupk2NHvbbU/EPi28sVlj0+50OSe0jmujdMlu3zQr55LGZRGUAlJPmKA+TuzQB5zH4T8R/EO2+";
+  "GWn+Lrbw94b+HtnqX2rTPAfhKOUWck6tte6vpJmd7iZhhdzu52lsFC7hvZfjQxb/AIJxftGsTknx";
+  "lASf+3vS65zT/wDkH/C7/r5l/wDQ1rovjN/yjg/aM/7HKD/0r0qgD5v/AGTPH/xk+EcHg/Xfhv4c";
+  "8MeJ7zUvDNxYWsniGeUCytxqt3JPGiLcQrmSSONmZg5wkYVl+Za6XwE3i/UtP8VeIfEuh6N4ZsfE";
+  "Pi611W10nQmJtYrp4plvJEDSSOgcrA21nKg7ggVeKvfsi/8AIm/C3/sD3/8A6cr2uiF/Z6X8I9Gv";
+  "NQuEtLCDXlknuJDhY0CvliewAoA2ta1iO28f/ESzeGUJNpiQC5AzGLh7KWaOE99zxWt3ID90CBgS";
+  "GZA3hfwwuNb0b9rzxT4h0mW8msdF8P6VNrmj2Vus76vpU50uyvLXYzKn+qu2lBf5QYFJxjcv1D8L";
+  "vBcGr6H4MOua9q1zo3xOurU+LvDNo7JeyavdxWF7aW8N0jrJBZQ2SzThS26OOCaIOzTqo+Vfg5b6";
+  "drX7RHj231CbUb5bv4dwLBNZxmRLtzZaeTFMFVkH2lN8ETPFIFubi2ZI3lES0AfQfhjS77WLz4pW";
+  "uo28cXi3xdceHfALXktm95DDeHUbqx1Z/kKl4yNOWXzPkOEtg20cD9D/AIQzLd6n8RLq12to7+Jp";
+  "IbB41VUIgs7S2uAuP7t1BdIc/wASMOgFflz+zfc+MfGeoXXiaFnsxa6rJKiq0d1da1rVy09pbS2M";
+  "/neU1w+dWLtNG0MKt9on+1RlVi/RX9mPWtRu0v8ATBLEvhiw0nTl0mwtIGjtLFPNvYligaVRPOnk";
+  "Q2j/AGiU/vt/mKkQYxqAe7UUUUAFFFePftR/HK4+BXw5gvdHtLTUvGGuahBonh+wvi4t5LyY8STe";
+  "WC3kxIJJXxjKx7dylgQAfN2u+HJvh18apvDd6q29n4s1YaFqMlj5UMts0t1d6h4X1WHZFkmB4prA";
+  "+a3ymxj2oy7N3yT8E/izpOr6j4f0T4iWt7o0fgyOaG+0q3jRnubuwt9XIEULqqmb7TrKIsUcxO/7";
+  "0SxsrQ9r8ZPFvxP+LFl4tt/EvizRtcj+zy6DZeXosEDXu+7iwqQQ3T3G6O9t7cRyPCyeajwrJvkK";
+  "v5V8OPFa+F/i98UfFHjqbSbCTxX4P1+7sdSvp/8AQLu+ubOT7TJaShMR3UkyJE0AjD/PMhKsiwyA";
+  "FO7lvfin8Cr618RaHoN7ftqNtKNHsrsw+IdMlMt3FL5CTRAFpns/KNv5kjHNv8hkaPPrGktN4N0G";
+  "HxdqVxLeWGr+DpUntNItXmiimj0/TdQt1treNB5ESWWorCQV2gWJmkdfMc1Wtr17j9pT4m+Htb8M";
+  "Rano3jLxjd22kJqOgW0tok0V7cvKszznbKxmu7aEIk0Yk/tGN1uLdo4tu18GNX+I/hf4hyaxZaPb";
+  "xeDNG1ZbW10G21XT9Ru7OKWKxtrcJ5lwDcLJa6dNpyRxlpkZZEJmnRwQDXfR9W8MX3gjw94gtYbD";
+  "xFomqz2OpWcE3nJBL+6mjAcABt0E0EnHQSgZ4rb+M3/KOD9oz/scoP8A0r0quRl+Hvh2w0iwufDP";
+  "iS50i20K0u7r+3JLeZ3ktlvprWxkltpE3ImnWlndySQ7Q8xtphLghsYfif43/D3xd+yjqngi++M/";
+  "h61k+IOraZqutaZZeFLt7nQXmns3nXzXvAsqW/kfMURmfBwozlQDN/ZEBbwd8LQBk/2Pf/8Apyva";
+  "kl13xGnwv07UfD3hJPEmm6FqVprN3Hf25lW9V782Vstvb7lN4puY5Y5EBXgLyQ+axPAEPwu8P/Fb";
+  "4W/DjTfjDd+PvCUnl6I9z4b0m50e6Wa7m1GWKVJN0jGWG6a0YrlAQYgElBmFbHxK+JsPw0+HPwk0";
+  "2zv9RufEg1TSdOtH0aIT3sWmDQ/Dk85toWbas/2yGBog2VZ0k6gsCAdvYp470+Xxb4NOkXV7ZaW8";
+  "+ry6zoEM2rWst3eaVGYLGxm8jbHFBpksVuuxz+6+0/u8TQyQeK/BrxrpXg74/wDxY16O4t4ZLT4b";
+  "Wms6EsluzQTXdkmk6jaoQANisbMfe2joByQD6f8AFi58OeDPhH421+x1G/0v4k3dglzqdlpmpi/0";
+  "HQNPR4bex0fdHCEmYbYLfZEzAPA0szqESJvkTSrXXdHtvs02lzv8QfF0GUtow0t1qOn6gLZ4EAE2";
+  "2JWihuDuKbglzHwwdHgAPtr4VeIPEFv8CvhLo2h68L3X/GNx/ZmknCMJRdRS3Ot6vulYLPdW7M1i";
+  "FKyFBbuigi8UV9//ALOGladB4V1XVNKEY0q61GWw0tYUCxR6fYYsLZYcADymW1My7QEP2hmX5WBP";
+  "5jQ658U9b8T2Pi/QNYsvAGuWGknQIrLTJI5zcG5ee6vZTdTSRW0cPnpezqwkYKI1UsxVK+pv2O/j";
+  "74k8G+PPCnwh8X6qNY8P6noMC+Gr2602LT7zT7mCFs6bNDCAuBDC5DMAyNE0bFmZTQB920UUUAFf";
+  "lF+0D8etZ+Nf7Q134i0bwfquu+FfAlybPTZVmt7aMWqOGvLyPzZh5xuHjULgACO2iIOZHC/q7X5N";
+  "fHj4Ya1ZftE+Ll+GnhH4meEvBs872F22k+Gb/U9PvZ5JJXvruOKWF0WLzJNkaQ8Exu6FVdMgHGWn";
+  "xfg8DXiX/ibTtY09EdbzQ08VBm066iPniVd9nIYRcbrySXzZV3CWR3LeYwNdZPpvh/xboWif8JI+";
+  "kz3erW4nutPup5GsbLTxOZmVFSVYYbNNNimZLiWIyG4ntnSfKMLbzuy13xhbXl7ptv4x8N69qfhP";
+  "dHBofirQZ9Iu7qFwVlDW5YSEABchkIIPJHfC8Oap4h+D/jvQbS70C70vw4BLrllZRo+tWul2qn7S";
+  "bmIgb2tYnjZ57ciOVELSRsGk3qAaGk+Cbk+BNG+FGt6jcadpeseIbefwpq/iXTsPpF3cpI8YvIZy";
+  "u61u1B2SKhV2E+9Ha3RU61PEWreG/Geo6dr1to3gDVPDrw2njDzfDWnSXU9nKI7fyr5JVRNRt5S8";
+  "WZftEULq8dx5YljGXeI/E2hfEDwfq0Wqz/b/ABPestvb6HZyPJDd2ccksokjCELfPI4nury/mVXU";
+  "3L7GALeXN4q8VG+8XQeHvHf9pa5PoWnn/hH/ABl4YvbabxboVjIoZLe6gjmePV7RVYbwcyCNrhm2";
+  "lnUAFH47+L/DHh3wF441Hw/4yk1DWdWtoLG7g1g3Nw8scaXCRJBdS2Fm7yC2uLq2Mj3dzIbaWSL9";
+  "6ViYZDeNfEXxg/Z9+KeqeKxaHW5/CF7rK24hdJJDPrunyXLuJFRUMbW0bqEDKVnj2uzo6qngj4F6";
+  "/rXjRvFfhp4fjXY2pjlm1nwFrENlqlvbxYSMPp0phvLK4bZh/KdQQQOeS1X4pwawLHxlb2HhPxv4";
+  "D1zWPtMedS8LXlsuqafdbfPgcrDIxbfDaSFmX/lgVDjeTQB2H7Fc2g6L8L/AulHxHd/EjXfEmpXd";
+  "3B4S8OLHNqnhW5WCW2ivY1ublbeCZdkJjuZUATzMYcMrJnP4Q12xt5I/GOreLtG0rQbua10NLCxt";
+  "bO8s7sSymH7TZyNEjGOGaZFkN2yRoSIXIcMOcs/h14n8Q6F4TtvAvw0+IFyNA0uxlttZ1DSFstOj";
+  "v7WXzZZo768O+ziZxIXEMsSbtzFc5Y814k0rXPGFtOnjzxLN4j099RS4vNG8N68+oxPftGkSvqmv";
+  "ztNAhWBI1VIXuCFhK+XCxaQgFGa8f4veKxcahbx6p4Qhvrf+0IdNhgsl8WalaW3mT2tnHbRxpDbJ";
+  "5kzyXCr+7gaKWXfO8EUvt2kadY32tw/ETxeWudd16Jn1C5sLm10a1jlaOJdPsgLiGX7Lp32S2u4o";
+  "p3VRKy7jJsBkh5zw94a0iG+8WaL/AGnDBdLYN4djP9mSWFhYIk6JJpAiuXR7aMvcshaSdHlupIJb";
+  "mRknnYu+KvxX8UX3hzwpqUeiw33iaw0aKeRvDqqgjihv44LS4nWARW89uLoWwtoER45fssTEtvBA";
+  "Be1XxRHZ6pq3h3S9Fhk8VLfTSWvh6ytI9SVZ5YjaX7xwPstorOW3it5GSZAnnBlRPIjCPQ8T6140";
+  "1ma68UQeFZFg+1eVFqEuuWyanbais32iO8jWONYg6TBXI3HzSHMkjPLI5o6VaeIPht4W1DXpNR0b";
+  "wK+kXLWs91q0n9p6lqWpTE/aJ55mdImlOWIAE2AhGWA3neX4Z+MPHWlT6f4e034y6/4ba2a6g1jT";
+  "tChsIjqLqyrKgeO1eaNCoyu4gEcFSc0Afpv+yx8Z9Q+Onwd07X9d0saH4qtJ5tJ17TUzst9Qt38u";
+  "YJyfkYgOoBbAcDcxBJ9cryL9k/S4NH+AfhW1TwLcfDe7SFvt/h66DmSC73nz33u7vKrvudZHdmZW";
+  "Xcd2QPXaACiiigDlPiT8KvCPxf8ADk+heMvD2n+IdNlR1WO/t0kaFmUr5kTEZjkAPDqQwPIINfB/";
+  "xa/4JfaxZXtxqfgvxHceN9PgQrY6H4tv913YRYyYbW4mjngPOSm6GNlO3dMVDh/0booA/EXxD4A+";
+  "JvwPlugmn6xBZW2sC+07TtV0afQ7mwuGdC6WN5EJbMxkkboVnZCkSNt+VgvXeEvG+jfEDVvEkF3e";
+  "6prUqahd+KdQg1GB7W+eKa1gSW2nsreOMH7QIba3nmw6xqryxuTcv5X7FsSqkgFiBnA6mvhn4ifs";
+  "k/GT9qabStR+KuqeFvDE9pPNLYw+HVDzaSu4iNfO8gXE+4cuI7u3UkqduVxQB8mW/gbTvEeleCCs";
+  "dt401DTE09ZLnTQk087XJ02NtPtp4XjKFftGqMh86QCaymBYNIUj6DxpN4k+HTeINCn+Knj621xY";
+  "7a60m2i8XaxY2kcUscMjDbO/miNPPK7mXcRGWKqdyr9MX3/BMx7S10T+xvild3V1pm9lPivQ4NTX";
+  "c2Nyxujwzoh2J8rSvgrkHJNcY37B/wAcdN0/xHpOn6v8N5tL1cxbf3mp232VEYuIYov3ojiUswRF";
+  "YKo6AdAAeSXvwsm8X/Guz8M+KtV1XxtZabqNvoss2ualc6lMbqR9TD3CrdzzW6CL+zWh+eNlLSxM";
+  "wwxSqEtx4W8P+CtbSxh1TV9W0i4vrTR/Eeia9F/ZMdwy2l7p7kJM1shKL5FzJBKjgXMyL5yhnh9+";
+  "sf8Agnz8T/FWowXfirxn4J0Zre1kt42s9Dn16ZmdmaSZ5L6RQ0sjTTlmdW++chixNXviB/wS1s9W";
+  "0XSJNJ+I3iDXdU0qdL1NP8VSW8umz3CsGysS27RRbjkN5sFyCh2lDkmgD5J8TfFe21vx34ug8Iza";
+  "HqWp66X0JPGd/HI1tLJIu6VlWFJJrmaRgpYQR+SZG37VjAWvcfgr+yprXiLRr8ah4H1DxHf3mnHT";
+  "5NY1/QLXQsTg7JUuzqdvdXjRsgQxz2gKKixokUDCQD6p/ZC0DxZ4AufGXgrxP8P9J8MW+lPazaZ4";
+  "i0XRrTS4dchkEgcyRWjvEJY5I2yQULLKhMUROD9H0AeD/AH9jb4ffAuKPUk0ey13xk0hml8RX0Uk";
+  "80LEk7LU3Ek0kEQ3EBRIzEcuznmveKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA";
+  "KKKKAP/Z";
+
+// Decodifica pra bytes uma vez no startup
+function getBrasaoBytes(): Uint8Array | null {
+  try {
+    const cleanBase64 = BRASAO_BASE64.replace(/[\r\n\s]/g, '');
+    const buf = Buffer.from(cleanBase64, "base64");
+    return new Uint8Array(buf);
+  } catch (e) {
+    console.log(`[pdf] erro ao decodificar brasao base64: ${(e as Error).message}`);
+    return null;
+  }
+}
+let brasaoBytes: Uint8Array | null = getBrasaoBytes();
+if (brasaoBytes) {
+  console.log(`[pdf] brasao embedado: ${brasaoBytes.length} bytes`);
+}
+
 // Resolve o caminho do brasão. Tenta várias estratégias.
 function resolveBrasaoPath(): string | null {
   const candidates: string[] = [];
   try {
     const here = dirname(fileURLToPath(import.meta.url));
+    // FIX (William 2026-09-20 v70): tenta TODOS os caminhos comuns
+    // (em runtime o dirname pode variar por causa do bundle esbuild)
     candidates.push(resolve(here, "..", "_lib", "brasao.jpg"));
+    candidates.push(resolve(here, "..", "lib", "brasao.jpg"));
+    candidates.push(resolve(here, "..", "..", "_lib", "brasao.jpg"));
+    candidates.push(resolve(here, "..", "..", "lib", "brasao.jpg"));
+    candidates.push(resolve(here, "..", "..", "..", "Brasao.jpg"));
+    candidates.push(resolve(here, "..", "..", "..", "brasao.jpg"));
   } catch {}
   candidates.push(resolve(process.cwd(), "api", "_lib", "brasao.jpg"));
-  candidates.push(resolve(process.cwd(), "api\\_lib\\brasao.jpg"));
-  candidates.push(resolve(process.cwd(), "internal", "..", "_lib", "brasao.jpg"));
+  candidates.push(resolve(process.cwd(), "internal", "_lib", "brasao.jpg"));
+  candidates.push(resolve(process.cwd(), "internal", "lib", "brasao.jpg"));
+  candidates.push(resolve(process.cwd(), "Brasao.jpg"));
+  candidates.push(resolve(process.cwd(), "brasao.jpg"));
+  candidates.push(resolve(process.cwd(), "..", "Brasao.jpg"));
+  candidates.push("/var/task/Brasao.jpg");
+  candidates.push("/var/task/internal/_lib/brasao.jpg");
   for (const c of candidates) {
     if (existsSync(c)) {
       console.log(`[pdf] brasao encontrado em: ${c}`);
       return c;
     }
   }
-  console.log(`[pdf] brasao NAO encontrado em nenhum caminho`);
+  console.log(`[pdf] brasao NAO encontrado em nenhum caminho:`);
+  candidates.forEach((c) => console.log(`  - ${c}`));
   return null;
-}
-
-const BRASAO_PATH = resolveBrasaoPath();
-let brasaoBytes: Uint8Array | null = null;
-if (BRASAO_PATH) {
-  try {
-    const buf = readFileSync(BRASAO_PATH);
-    brasaoBytes = new Uint8Array(buf);
-    console.log(`[pdf] brasao carregado: ${brasaoBytes.length} bytes`);
-  } catch (e: any) {
-    console.log(`[pdf] erro ao ler brasao: ${e.message}`);
-  }
 }
 
 // Cor preta / cores auxiliares
@@ -207,24 +376,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const secW = CONTENT_W - 56 - 4 - 140;
   page1.drawRectangle({ x: secX, y: A4_H - M - blocoTopH, width: secW, height: blocoTopH, borderColor: BLACK, borderWidth: 0.5 });
 
+  // FIX (William 2026-09-20 v70): 3 linhas de altura, com folga pra nao
+  // tocar as linhas separadoras. Cada linha ocupa ~1/3 do bloco.
+  // Linha 1 (topo): "Secretaria da Seguranca Publica"
+  // Linha 2 (meio): "Subfrota XXX"
+  // Linha 3 (baixo): "Sorocaba"
+  const linhaH = blocoTopH / 3;
   page1.drawText("Secretaria da Seguranca Publica", {
-    x: secX + 4, y: A4_H - M - 10, size: 9.5, font: fontReg, color: BLACK,
+    x: secX + 4, y: A4_H - M - 14, size: 9.5, font: fontReg, color: BLACK,
   });
   page1.drawText(`Subfrota ${unidadeRequerente?.sigla || unidadeRequerente?.name || "CPI-7"}`, {
-    x: secX + 4, y: A4_H - M - 30, size: 11, font: fontBold, color: BLACK,
+    x: secX + 4, y: A4_H - M - linhaH - 12, size: 11, font: fontBold, color: BLACK,
   });
   page1.drawText(unidadeOrigem?.cidade || unidadeOrigem?.municipio || "Sorocaba", {
-    x: secX + 4, y: A4_H - M - 50, size: 10, font: fontReg, color: BLACK,
+    x: secX + 4, y: A4_H - M - linhaH * 2 - 12, size: 10, font: fontReg, color: BLACK,
   });
-  // Separadores
+  // Separadores horizontais (entre as linhas)
   page1.drawLine({
-    start: { x: secX, y: A4_H - M - 22 },
-    end: { x: secX + secW, y: A4_H - M - 22 },
+    start: { x: secX, y: A4_H - M - linhaH },
+    end: { x: secX + secW, y: A4_H - M - linhaH },
     thickness: 0.5, color: BLACK,
   });
   page1.drawLine({
-    start: { x: secX, y: A4_H - M - 42 },
-    end: { x: secX + secW, y: A4_H - M - 42 },
+    start: { x: secX, y: A4_H - M - linhaH * 2 },
+    end: { x: secX + secW, y: A4_H - M - linhaH * 2 },
     thickness: 0.5, color: BLACK,
   });
 
@@ -322,12 +497,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Corpo Hodometro (3 linhas)
   page1.drawRectangle({ x: odoX, y: A4_H - metY - metH, width: odoW, height: metH - 14, borderColor: BLACK, borderWidth: 0.5 });
   const odoRowH = (metH - 14) / 3;
-  // Partida
-  drawOdoLine(page1, odoX, A4_H - metY - 14 - odoRowH, odoW, odoRowH, "Partida", partidaKm, fontBold);
-  // Retorno
-  drawOdoLine(page1, odoX, A4_H - metY - 14 - odoRowH * 2, odoW, odoRowH, "Retorno", retornoKm, fontBold);
-  // Diferenca (DESTAQUE)
-  drawOdoLine(page1, odoX, A4_H - metY - 14 - odoRowH * 3, odoW, odoRowH, "Diferenca", diferencaKm, fontBold, true);
+  // FIX (William 2026-09-20 v70): i=0 deve comecar no TOPO do box
+  // (A4_H - metY - 14), nao - 14 - odoRowH (que pulava a primeira linha).
+  // drawOdoLine desenha uma linha horizontal em yTop e o retangulo da
+  // celula de yTop-h ate yTop. Entao a primeira linha precisa de yTop
+  // igual ao topo do corpo (i=0), segunda linha subtrai 1*odoRowH (i=1), etc.
+  // Partida (linha 1 - topo)
+  drawOdoLine(page1, odoX, A4_H - metY - 14 - odoRowH * 0, odoW, odoRowH, "Partida", partidaKm, fontBold);
+  // Retorno (linha 2 - meio)
+  drawOdoLine(page1, odoX, A4_H - metY - 14 - odoRowH * 1, odoW, odoRowH, "Retorno", retornoKm, fontBold);
+  // Diferenca (linha 3 - base, DESTAQUE amarelo)
+  drawOdoLine(page1, odoX, A4_H - metY - 14 - odoRowH * 2, odoW, odoRowH, "Diferenca", diferencaKm, fontBold, true);
 
   // Label vertical "Abastecimento" entre as duas
   page1.drawRectangle({ x: odoX + odoW, y: A4_H - metY - metH, width: 14, height: metH, borderColor: BLACK, borderWidth: 0.5 });
@@ -348,6 +528,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   drawCellText(page1, fontReg, "Natureza", absX, A4_H - metY - 14 - subH + 4, subNatW, 8.5);
   drawCellText(page1, fontReg, "Quantidade", absX + subNatW, A4_H - metY - 14 - subH + 4, subQtdW, 8.5, { align: "right", dx: -4 });
   drawCellText(page1, fontReg, "KM", absX + subNatW + subQtdW, A4_H - metY - 14 - subH + 4, subKmW, 8.5, { align: "right", dx: -4 });
+  // FIX (William 2026-09-20 v70): retangulo externo do box Abastecimento
+  // (estava faltando - ficava solto em relacao ao Hodometro do lado)
+  page1.drawRectangle({ x: absX, y: A4_H - metY - metH, width: metW, height: metH - 14, borderColor: BLACK, borderWidth: 0.5 });
   // Linhas de natureza
   const naturezas = ["Gasolina", "Alcool", "Diesel", "Oleo"];
   const absRowH = (metH - 14 - subH) / 4;
@@ -739,11 +922,22 @@ function drawDigitalSignature(
   const txtX = x + brasaoW + 12;
   const txtW = w - brasaoW - 16;
   page.drawText("ASSINATURA DIGITAL", {
-    x: txtX, y: y + h - 12, size: 7, font: fontBold, color: rgb(0.33, 0.33, 0.33),
+    x: txtX, y: y + h - 10, size: 7, font: fontBold, color: rgb(0.33, 0.33, 0.33),
   });
 
-  // Linha tracejada
-  const lineY = y + h * 0.55;
+  // FIX (William 2026-09-20 v70): Token ACIMA do tracejado (nao em cima),
+  // senao o tracejado passava por cima do texto do Token.
+  // Layout (top -> bottom):
+  //   1) "ASSINATURA DIGITAL" (label)         - topo
+  //   2) Token (texto grande em azul)         - meio
+  //   3) Linha tracejada                      - abaixo do Token
+  //   4) Info RE + data/hora (rodape)         - base
+  const tokenY = y + h - 28;             // 28pt abaixo do topo (deixa espaco pro label)
+  const lineY = y + h * 0.35;            // 35% da altura (abaixo do Token)
+  page.drawText(`Token: ${hash}`, {
+    x: txtX, y: tokenY, size: 18, font: fontBold, color: BLUE_DARK,
+  });
+  // Linha tracejada (entre Token e Info inferior)
   for (let lx = txtX; lx < txtX + txtW; lx += 6) {
     page.drawLine({
       start: { x: lx, y: lineY },
@@ -751,11 +945,6 @@ function drawDigitalSignature(
       thickness: 0.5, color: rgb(0.53, 0.53, 0.53),
     });
   }
-
-  // Token (Times New Roman Italic Bold-like — usa HelveticaBoldOblique como similar)
-  page.drawText(`Token: ${hash}`, {
-    x: txtX, y: lineY - 6, size: 16, font: fontBold, color: BLUE_DARK,
-  });
 
   // Info inferior
   page.drawText(`${reFull}    ${formatDateTime(signatario.timestamp)}`, {

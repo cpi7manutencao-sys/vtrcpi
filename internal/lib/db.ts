@@ -214,10 +214,17 @@ const COLUMN_CAMEL_MAP: Record<string, string> = {
   rondadopor: "rondadoPor",
   textolivre: "textoLivre",
   unidadepertence: "unidadePertence",
-  assinaturasvg: "assinaturaSvg",
   preenchidoem: "preenchidoEm",
-  iporigem: "ipOrigem",
-  useragenterigem: "userAgentOrigem",
+
+  // ========== ifctAbastecimentos (FIX William 2026-09-20) ==========
+  // FIX: sem esses mapeamentos, o camelizeRows retornava chave
+  // lowercase (fotocomprovante, observacao, posto) em vez de camelCase.
+  // Resultado: o PDF nao renderizava pagina 3 (comprovantes) pq
+  // abs.fotoComprovante era undefined.
+  fotocomprovante: "fotoComprovante",
+  quantidadelitros: "quantidadeLitros",
+  // observacao, posto, datahora, agendamentoid ja cobertos acima
+  // (iporigem, postograduacao, tipoviatura, useragentorigem ja cobertos acima)
 
   // ========== auditLog ==========
   // campos genericos ja cobertos (userId, cpf, action, etc)
