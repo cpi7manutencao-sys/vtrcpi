@@ -48,12 +48,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // FIX (William 2026-09-14 v65): se recebeu matrizId + filhasIds, calcula
-  // a lista final de unidades autorizadas (recursivamente, via commandUnit).
+  // a lista final de unidades autorizadas (recursivamente, via parentUnit).
+  // FIX (William 2026-09-20): troquei de commandUnit pra parentUnit (mesma
+  // razao: commandUnit=11 em todas as matrizes causava explosão).
   // Salva em unidadesGestor E unidadesEditor.
   let resolvedUnits: number[] | null = null;
   if (matrizId !== undefined && matrizId !== null) {
-    const unitsRes = await sql`SELECT id, commandUnit FROM units`;
-    const unitsLite = unitsRes.rows.map((r: any) => ({ id: r.id, commandUnit: r.commandUnit }));
+    const unitsRes = await sql`SELECT id, parentUnit FROM units`;
+    const unitsLite = unitsRes.rows.map((r: any) => ({ id: r.id, parentUnit: r.parentUnit }));
     resolvedUnits = [...resolveAuthorizedUnits(unitsLite, matrizId, filhasIds)];
     console.log(`[promote] userId=${userId} matriz=${matrizId} filhasSelecionadas=${filhasIds?.length || 0} -> resolved=${resolvedUnits.length} unidades`);
   }

@@ -58,7 +58,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   //  4) Fallback: proprio id (vai aparecer como linha separada,
   //     mas o commandUnit SEMPRE existe pros BPMs/Cias/Sub-OPMs
   //     que foram cadastrados via seed)
-  function findMatriz(opmId: number): number {
+  function findMatriz(opmId: number, visited: Set<number> = new Set()): number {
+    if (visited.has(opmId)) return opmId; // protecao contra loop
+    visited.add(opmId);
     let current = unitsById.get(opmId);
     if (!current) return opmId;
     if (current.code === "607000000") return current.id;
@@ -67,12 +69,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return current.id;
     }
     if (current.parentUnit) {
-      return findMatriz(current.parentUnit);
+      return findMatriz(Number(current.parentUnit), visited);
     }
-    if (current.commandUnit) {
-      const cmdUnit = unitsById.get(current.commandUnit);
+    // FIX (William 2026-09-20): commandUnit NAO eh confiável (no banco, todas
+    // as matrizes tem commandUnit=11 = auto-ref, o que causaria loop).
+    // Usar parentUnit OU cair pro proprio ID.
+    if (current.commandUnit && Number(current.commandUnit) !== opmId) {
+      const cmdUnit = unitsById.get(Number(current.commandUnit));
       if (cmdUnit) {
-        return findMatriz(cmdUnit.id);
+        return findMatriz(cmdUnit.id, visited);
       }
     }
     return current.id;
