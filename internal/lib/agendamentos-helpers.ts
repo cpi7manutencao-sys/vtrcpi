@@ -106,6 +106,41 @@ export async function getUnidadesDescendentes(unidadeId: number): Promise<number
 }
 
 /**
+ * FIX (William 2026-09-20): pra AGENDAMENTOS usar APENAS hierarquia tecnica
+ * (parentUnit), NAO commandUnit.
+ *
+ * Por que? No backup, TODAS as 10 matrizes tem commandUnit=11 (auto-ref da
+ * CPI-7). Se usarmos commandUnit, o gestor da CPI-7 (ug=[11]) veria TUDO
+ * (todas as 9 outras matrizes + sub-CPI-7 filhas), independente de onde a
+ * solicitacao foi feita.
+ *
+ * O comportamento desejado: Carlos (gestor CPI-7) deve ver APENAS
+ * solicitacoes PRA unidades sob a CPI-7 diretamente (parentUnit=11).
+ * Se outra matriz (12BPMI, 22BPMI) recebe sua propria solicitacao, o gestor
+ * daquela matriz eh quem aprova - Carlos nao interfere.
+ *
+ * Retorna Set unico com: cada raiz + suas descendentes tecnicas.
+ *
+ * Parametros:
+ *   unidadesDiretas: lista de unidades onde o user eh gestor/editor
+ *   incluirPropriaRaiz: se true, adiciona a propria raiz alem das filhas
+ *
+ * Ex: PEDRO com ug=[12] -> {12, 21, 22, 23, 93} (12 + sub-CPI-7 filhas)
+ * Ex: CARLOS com ug=[11] -> {11} (sem filhas, pq matrizes nao tem parentUnit)
+ */
+export async function getUnidadesAutorizadasTecnicas(
+  unidadesDiretas: number[]
+): Promise<number[]> {
+  if (!unidadesDiretas || unidadesDiretas.length === 0) return [];
+  const resultado = new Set<number>();
+  for (const id of unidadesDiretas) {
+    const descendentes = await getUnidadesDescendentesTecnicos(id);
+    descendentes.forEach(d => resultado.add(d));
+  }
+  return Array.from(resultado);
+}
+
+/**
  * Verifica se o user tem o role minimo necessario.
  * Lanca erro se nao tiver.
  */

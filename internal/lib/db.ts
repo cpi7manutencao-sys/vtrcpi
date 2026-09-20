@@ -218,18 +218,33 @@ function camelizeKey(key: string): string {
  * BIGINTs em geral (dataMissao, criadoEm, etc).
  */
 const NUMERIC_FIELDS = new Set([
-  "id", "userid", "viaturaiid", "agendamentoid", "solicitante",
-  "parentunit", "commandunit", "unit", "opm", "createdby", "atualizadopor",
+  "id", "userid", "viaturaid", "agendamentoid", "solicitante",
+  "parentunit", "commandunit", "unit", "opm", "createdby", "createdbyuserid",
   "aprovadopor", "rejeitadopor", "concluidopor", "viaturaatribuida",
   "odometroretiradapor", "odometrodevolucaopor", "ifctvalidadopor",
-  "criadopor", "registradopor", "dataBaixa", "databaixa",
-  "datareativadoem", "criadoem", "atualizadoem", "ultimoLogin",
+  "criadopor", "atualizadopor", "registradopor",
+  "dataBaixa", "databaixa", "datareativadoem",
+  "criadoem", "atualizadoem", "ultimoLogin", "lastlogin",
   "datamissao", "retiradata", "devolucaodata",
   "aprovadoem", "rejeitadoem", "concluidoem", "promotedat",
   "odometroretiradaem", "odometrodevolucaoem", "partidaconfirmadaem",
-  "linkifctexpiraem", "ifctvalidadoem", "lastlogin",
+  "linkifctexpiraem", "ifctvalidadoem", "linkifctexpiraem",
   "logincount", "datahora", "preenchidoem", "assinaturacriadoem",
   "horarioapresentacao", "anofab", "kmrodados",
+  // FIX (William 2026-09-20): adiciona IDs/IDs de unidade que faltavam.
+  // Sem isso, o `pg` retorna esses BIGINTs como string, causando
+  // comparacoes como Array.includes(11) === false porque "11" !== 11.
+  "unidaderequerente", "unidadeorigem", "unidaderequerenteoutro",
+  "unidadesgestor", "unidadeseditor",
+  // auditoria
+  "targetuserid", "performedby",
+  // IFCT
+  "odometro", "hodometropartida", "hodometroretorno", "hodometrodiferenca",
+  "novaapresentacaodata",
+  // rondas (km em rondas)
+  "km",
+  // agendamento DEJEM
+  "dejemdesignacaoid",
 ]);
 
 function coerceValue(key: string, val: any): any {

@@ -7,7 +7,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sql, now } from "../lib/db";
 import { requireAuth } from "../lib/auth";
-import { getUserById, getUserUnidadesAutorizadas } from "../lib/agendamentos-helpers";
+import { getUserById } from "../lib/agendamentos-helpers";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -37,10 +37,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ ok: false, error: "Agendamento nao esta pendente" });
   }
 
-  if (user.viaturasRole !== "admin" && !user.isMaster && ag.unidadeRequerente) {
+  // FIX (William 2026-09-20 v67): REGRA "PARTES INTERESSADAS"
+  // O user pode rejeitar se cobrir unidadeRequerente OU unidadeOrigem.
+  // Master/admin continuam cobrindo unidades em unidadesGestor (lista explicita).
+  if (user.viaturasRole !== "admin" && !user.isMaster) {
     const unidadesGestor = parseJsonArray(user.unidadesGestor);
-    const autorizadas = await getUserUnidadesAutorizadas(unidadesGestor);
-    if (!autorizadas.includes(ag.unidadeRequerente)) {
+    const unidadesNum = unidadesGestor.map((u: any) => Number(u));
+    const cobreReq = ag.unidadeRequerente && unidadesNum.includes(Number(ag.unidadeRequerente));
+    const cobreOrig = ag.unidadeOrigem && unidadesNum.includes(Number(ag.unidadeOrigem));
+    if (!cobreReq && !cobreOrig) {
       return res.status(403).json({ ok: false, error: "Voce nao tem permissao pra rejeitar pedidos dessa unidade" });
     }
   }

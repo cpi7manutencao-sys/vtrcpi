@@ -11,7 +11,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sql, now } from "../lib/db";
 import { requireAuth } from "../lib/auth";
-import { getUserById, getUserUnidadesAutorizadas } from "../lib/agendamentos-helpers";
+import { getUserById } from "../lib/agendamentos-helpers";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -46,21 +46,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ ok: false, error: "Agendamento nao esta pendente (status=" + ag.status + ")" });
   }
 
-  // Verifica que o user cobre a unidade REQUERENTE ou a VIATURA ATRIBUIDA
-  // (mesmo admin/master precisa ter a unidade em unidadesGestor/unidadesEditor)
-  const unidades = user.viaturasRole === "admin" || user.isMaster
+  // FIX (William 2026-09-20 v67): REGRA "PARTES INTERESSADAS"
+  // O user pode aprovar se cobrir unidadeRequerente OU unidadeOrigem
+  // do agendamento (nao exige expansao hierarquica). Lista CRUA do
+  // unidadesGestor/unidadesEditor do user (sem getUserUnidadesAutorizadas).
+  //
+  // Master/admin continuam cobrindo as unidades em unidadesGestor (lista explicita).
+  // Se master/admin nao tem a unidade na lista, NAO pode aprovar.
+  const unidades = user.viaturasRole === "gestor"
     ? parseJsonArray(user.unidadesGestor)
-    : parseJsonArray(user.unidadesGestor);
-  const autorizadas = await getUserUnidadesAutorizadas(unidades);
+    : parseJsonArray(user.unidadesEditor || user.unidadesGestor);
+  const unidadesNum = unidades.map((u: any) => Number(u));
   let podeAprovar = false;
-  if (ag.unidadeRequerente && autorizadas.includes(Number(ag.unidadeRequerente))) {
+  if (ag.unidadeRequerente && unidadesNum.includes(Number(ag.unidadeRequerente))) {
+    podeAprovar = true;
+  }
+  if (!podeAprovar && ag.unidadeOrigem && unidadesNum.includes(Number(ag.unidadeOrigem))) {
     podeAprovar = true;
   }
   // Se tem viatura atribuida, verifica se eh da unidade autorizada
   if (!podeAprovar && ag.viaturaAtribuida) {
     const vtrRes = await sql`SELECT opm FROM viaturas WHERE id = ${ag.viaturaAtribuida} LIMIT 1`;
     const vtrOpm = Number(vtrRes.rows[0]?.opm);
-    if (vtrOpm && autorizadas.includes(vtrOpm)) {
+    if (vtrOpm && unidadesNum.includes(vtrOpm)) {
       podeAprovar = true;
     }
   }

@@ -7,7 +7,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sql, query } from "../lib/db";
 import { requireAuth } from "../lib/auth";
-import { getUserUnidadesAutorizadas, getUserFromCpf } from "../lib/agendamentos-helpers";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -22,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const unidadeId = req.query.unidadeId ? parseInt(req.query.unidadeId as string, 10) : null;
   const session = auth.session;
 
-  // Resolver user (admin: ve tudo, gestor/editor: filtra por unidades, viewer: so os proprios)
+  // Resolver user (admin: ve tudo, gestor/editor: partes interessadas, viewer: so os proprios)
   const user = await getUserByIdSafe(session.userId);
   if (!user) {
     return res.status(200).json({ ok: true, agendamentos: [] });
@@ -30,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let rows: any[] = [];
   if (user.viaturasRole === "admin" || user.isMaster === true || user.isMaster === 1) {
-    // Admin ve tudo
+    // Admin/master: ve tudo
     const all = await sql`SELECT * FROM agendamentos ORDER BY id DESC`;
     rows = all.rows;
   } else if (user.viaturasRole === "gestor" || user.viaturasRole === "editor") {
@@ -40,18 +39,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!unidades || unidades.length === 0) {
       return res.status(200).json({ ok: true, agendamentos: [] });
     }
-    const autorizadas = await getUserUnidadesAutorizadas(unidades);
-    if (autorizadas.length === 0) {
-      return res.status(200).json({ ok: true, agendamentos: [] });
-    }
-    // Busca por unidadeRequerente IN (autorizadas) OR solicitante = userId
-    const placeholders = autorizadas.map((_, i) => `$${i + 1}`).join(",");
+
+    // FIX (William 2026-09-20 v67): REGRA "PARTES INTERESSADAS"
+    // Cada agendamento tem 2 unidades envolvidas:
+    //   - unidadeRequerente (id): pra qual unidade a viatura vai
+    //   - unidadeOrigem (id): de onde o solicitante eh lotado
+    // Quem ve:
+    //   1. O solicitante (solicitante = userId)
+    //   2. Gestores/Editores da unidade ORIGEM do solicitante
+    //   3. Gestores/Editores da unidade REQUERENTE (destino da viatura)
+    // Outras pessoas NAO veem (CPI-7 master, outros batalhoes, etc).
+    //
+    // Sem essa regra, Carlos (CPI-7 ug=[11]) via id=87 (FABIO pediu
+    // viatura pra 12BPMI), interferindo em solicitacao que nao era
+    // da jurisdicao dele.
+    //
+    // Importante: unidadesGestor aqui eh a LISTA CRUA (sem expansao
+    // hierarquica), porque o user eh gestor EXATAMENTE dessas unidades.
+    const params: any[] = [unidades, user.id];
     const all = await query(
       `SELECT * FROM agendamentos
-       WHERE unidadeRequerente IN (${placeholders})
-          OR solicitante = $${autorizadas.length + 1}
+       WHERE unidadeRequerente = ANY($1::int[])
+          OR unidadeOrigem = ANY($1::int[])
+          OR solicitante = $2
        ORDER BY id DESC`,
-      [...autorizadas, user.id]
+      params
     );
     rows = all.rows;
   } else {
