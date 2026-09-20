@@ -193,6 +193,23 @@ const COLUMN_CAMEL_MAP: Record<string, string> = {
   ifctvalidadoem: "ifctValidadoEm",
   ifctvalidadoobservacao: "ifctValidadoObservacao",
 
+  // FIX (William 2026-09-20): colunas novas de ifctEncerramentos que faltavam.
+  // Sem elas, o camelizeRows deixava campos como undefined e o get-by-token
+  // retornava encerramento vazio - KM inicial aparecia em branco no mobile
+  // e "consideracoesVeiculo" truncado.
+  hodometropartida: "hodometroPartida",
+  hodometroretorno: "hodometroRetorno",
+  hodometrodiferenca: "hodometroDiferenca",
+  partidaconfirmadaem: "partidaConfirmadaEm",
+  defeitosverificados: "defeitosVerificados",
+  novaapresentacaodata: "novaApresentacaoData",
+  novaapresentacaohora: "novaApresentacaoHora",
+  novaapresentacaolocal: "novaApresentacaoLocal",
+  consideracoesveiculo: "consideracoesVeiculo",
+  assinaturacondutorsvg: "assinaturaCondutorSvg",
+  iporigem: "ipOrigem",
+  useragentorigem: "userAgentOrigem",
+
   // ========== rondas ==========
   rondadopor: "rondadoPor",
   textolivre: "textoLivre",

@@ -698,7 +698,13 @@ function EncerramentoModal({ token, ag, onClose, onSaved }: { token: string; ag:
       </Field>
 
       <Field label="Considerações gerais sobre o veículo / condutor">
-        <textarea value={consideracoes} onChange={e => setConsideracoes(e.target.value)} rows={2} placeholder="Observações adicionais" style={inputStyle} />
+        <textarea
+          value={consideracoes}
+          onChange={e => setConsideracoes(e.target.value)}
+          rows={2}
+          placeholder="A manutenção de 1º escalão foi realizada sem novidades (preenchido automaticamente se você pulou essa etapa)"
+          style={inputStyle}
+        />
       </Field>
 
       {/* FIX (William 2026-09-14 v56): assinatura do condutor REMOVIDA.
