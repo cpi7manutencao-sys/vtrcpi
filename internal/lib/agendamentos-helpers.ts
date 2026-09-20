@@ -123,15 +123,19 @@ export async function getUserUnidadesAutorizadas(
     if (visited.has(id)) return;
     visited.add(id);
     resultado.add(id);
-    // parentUnit (recursivo)
+    // 1) Descendentes tecnicos (parentUnit) - recursivo
     const filhas = unitsByParent.get(id) || [];
     for (const f of filhas) expand(f, visited);
-    // commandUnit (1 nivel soh - sem recursao pra evitar loop)
+    // 2) Subordinadas funcionais (commandUnit) - recursivo TAMBEM pra pegar
+    //    filhas dessas subordinadas. Sem isso, Carlos (CPI-7 ug=[11]) via
+    //    as 10 matrizes mas NAO via as sub-cias filhas delas (ex: 1a Cia
+    //    do 7BPMI). Mapa Geral ficava incompleto.
+    // Protecao contra loop: `visited` set evita reprocessar.
     const subordinadas = unitsByCmd.get(id) || [];
     for (const s of subordinadas) {
       if (!visited.has(s)) {
-        resultado.add(s);
-        // Nao recursa em commandUnit - evita loop
+        // recursa: pega filhas da subordinada tambem
+        expand(s, visited);
       }
     }
   }
