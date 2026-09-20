@@ -24,8 +24,11 @@ const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 
 // Redirect_uri do setup: precisa ser EXATAMENTE a mesma registrada no
-// Google Cloud Console. Em prod: https://vtrcpi-five.vercel.app/api/auth/google/gmail-setup
-const SETUP_REDIRECT_URI =
+// Google Cloud Console. Em prod (Vercel):
+//   https://vtrcpi-five.vercel.app/api/auth/google/gmail-setup
+// Aceita override via env GMAIL_SETUP_REDIRECT_URI OU via query ?redirect_uri=...
+// (igual /api/auth/google/start - util pra dev/intranet)
+const DEFAULT_REDIRECT_URI =
   process.env.GMAIL_SETUP_REDIRECT_URI ||
   "https://vtrcpi-five.vercel.app/api/auth/google/gmail-setup";
 
@@ -67,7 +70,8 @@ ${body}
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const { code, error } = req.query as Record<string, string>;
+  const { code, error, redirect_uri: redirectUriQuery } = req.query as Record<string, string>;
+  const redirectUri = redirectUriQuery || DEFAULT_REDIRECT_URI;
 
   // ============================================================
   // 1) Sem code: redireciona pra Google consent
@@ -89,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const params = new URLSearchParams({
       client_id: CLIENT_ID,
-      redirect_uri: SETUP_REDIRECT_URI,
+      redirect_uri: redirectUri,
       response_type: "code",
       scope: SCOPES.join(" "),
       access_type: "offline",     // CRITICO: sem isso, NAO vem refresh_token
@@ -104,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ============================================================
   try {
     const client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET);
-    const { tokens } = await client.getToken({ code, redirect_uri: SETUP_REDIRECT_URI });
+    const { tokens } = await client.getToken({ code, redirect_uri: redirectUri });
 
     console.log("[gmail-setup] tokens recebidos (access_token=" +
       (tokens.access_token ? "sim" : "nao") +
@@ -164,7 +168,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `<h1>❌ Erro</h1>
        <pre>${e?.message || JSON.stringify(e, null, 2)}</pre>
        <p>Tente novamente. Se persistir, verifique se a redirect_uri
-          (<code>${SETUP_REDIRECT_URI}</code>) esta registrada EXATAMENTE igual
+          (<code>${redirectUri}</code>) esta registrada EXATAMENTE igual
           no Google Cloud Console (APIs & Services &gt; Credentials &gt; OAuth 2.0 Client IDs).</p>`));
   }
 }
