@@ -417,18 +417,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     timestamp: ag.concluidoEm || ag.aprovadoEm || Date.now(),
   });
   // FIX (William 2026-09-20 v71): infoTxt fica LOGO abaixo do box de
-  // assinatura (4pt de gap), depois "Baseado..." fica mais abaixo com
-  // folga clara. Antes era 6+12 = 18pt de gap entre infoTxt e "Baseado..."
-  // mas infoTxt era desenhado em y-10 e "Baseado..." em y-8 do mesmo y,
-  // resultando em apenas 10pt de diferenca visual entre os dois textos.
+  // assinatura (4pt de gap) e ALINHADO A DIREITA (mesmo X do
+  // "Baseado no Impresso..."). Depois "Baseado..." fica mais abaixo
+  // com folga clara de 18pt.
   y += expHdrH + expBoxH + 4;
-  // Nome do gestor (IMEDIATAMENTE abaixo do box)
+  // Nome do gestor (IMEDIATAMENTE abaixo do box, ALINHADO A DIREITA)
   const infoTxt = [
     expedidor?.postoGraduacao || "Cb PM",
     expedidor?.warName || expedidor?.name || "WILLIAM",
     expedidor?.re ? `RE ${expedidor.re}${expedidor.digre ? `-${expedidor.digre}` : ""}` : "",
   ].filter(Boolean).join(" ");
-  page1.drawText(infoTxt, { x: M, y: A4_H - y - 9, size: 9, font: fontBold });
+  // Alinha a direita na coluna do "Baseado..." (largura 200pt a partir
+  // de A4_W - M - 200). Mede o texto pra terminar na borda direita.
+  const infoTxtWidth = fontBold.widthOfTextAtSize(infoTxt, 9);
+  page1.drawText(infoTxt, {
+    x: A4_W - M - 200 + 200 - infoTxtWidth,
+    y: A4_H - y - 9, size: 9, font: fontBold,
+  });
   y += 18;
 
   // "Baseado no Impresso..." (mais abaixo, com folga)
@@ -517,11 +522,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     timestamp: encerramento?.dataHora || ag.concluidoEm || Date.now(),
   });
   // FIX (William 2026-09-20 v71): nome do condutor fica LOGO abaixo do
-  // box de assinatura (3pt de gap), igual ao do EXPEDIDOR.
+  // box de assinatura (3pt de gap) e ALINHADO A DIREITA, mesma direcao
+  // do EXPEDIDOR.
   y2 += condAssLabelH + condAssBoxH + 3;
-  // Nome do condutor
+  // Nome do condutor (alinhado a direita)
+  const condTxtWidth = fontBold.widthOfTextAtSize(condutorTexto, 10);
   page2.drawText(condutorTexto, {
-    x: M, y: A4_H - y2 - 10, size: 10, font: fontBold, color: BLACK,
+    x: M + CONTENT_W - condTxtWidth,
+    y: A4_H - y2 - 10, size: 10, font: fontBold, color: BLACK,
   });
   y2 += 16;
 
