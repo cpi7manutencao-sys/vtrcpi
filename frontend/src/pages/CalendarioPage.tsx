@@ -2,6 +2,7 @@
 import { Navigate } from 'react-router-dom'
 import { getUser } from '../lib/auth'
 import { listAgendamentosPorMes, listViaturas, listUnits } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 
 export default function CalendarioPage() {
   const user = getUser()
@@ -42,6 +43,9 @@ export default function CalendarioPage() {
   }
 
   useEffect(() => { carregar() }, [ano, mês, user?.cpf])
+  // FIX (William 2026-09-20): auto-refresh a cada 30s no Calendario
+  // pra ver novos agendamentos no mes.
+  useAutoRefresh(carregar, { interval: 30000, paused: loading })
 
   function mesAnterior() {
     if (mês === 0) {

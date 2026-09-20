@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { getUser, isAdmin, isGestor } from '../lib/auth'
 import { getTotais } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 
 // Cores do sistema
 const COR_OPERANDO = '#2e7d32'      // verde
@@ -173,13 +174,20 @@ export default function DashboardPage() {
     return <Navigate to="/" replace />
   }
 
-  useEffect(() => {
+  function carregarDados() {
     if (!user) return
     getTotais(user.cpf)
       .then((data: any) => setDados(data))
       .catch(e => setErro(e.message))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    carregarDados()
   }, [user?.cpf])
+  // FIX (William 2026-09-20): auto-refresh a cada 30s pra ver atualizacoes
+  // de viaturas (operando/baixada/emDescarga) no Mapa Geral.
+  useAutoRefresh(carregarDados, { interval: 30000, paused: loading })
 
   if (loading) return <p>Carregando...</p>
   if (erro) return <div className="alert alert-error">{erro}</div>

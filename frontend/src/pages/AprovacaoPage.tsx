@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch, isLoggedIn, isGestor, getUser } from "../lib/auth";
+import { useAutoRefresh } from "../lib/useAutoRefresh";
 
 interface PendingUser {
   id: number;
@@ -50,6 +51,9 @@ export default function AprovacaoPage() {
     }
     loadAll();
   }, []);
+  // FIX (William 2026-09-20): auto-refresh a cada 20s pra ver novos
+  // usuarios pendentes cadastrados.
+  useAutoRefresh(loadAll, { interval: 20000, paused: loading });
 
   async function loadAll() {
     setLoading(true);

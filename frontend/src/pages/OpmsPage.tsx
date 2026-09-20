@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { getUser, isAdmin, isGestor } from '../lib/auth'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 import {
   listUnits,
   listUnitsHierarchical,
@@ -95,6 +96,8 @@ export default function OpmsPage() {
   }
 
   useEffect(() => { carregar() }, [])
+  // FIX (William 2026-09-20): auto-refresh a cada 60s (unidades mudam raro).
+  useAutoRefresh(carregar, { interval: 60000, paused: loading })
 
   const filtrados = useMemo(() => {
     let r = units

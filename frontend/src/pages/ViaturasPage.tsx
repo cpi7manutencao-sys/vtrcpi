@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Navigate } from 'react-router-dom'
 import { getUser, isEditor, isAdmin, isGestor } from '../lib/auth'
 import { listViaturas, upsertViatura, listUnits, colocarViaturaEmDescarga, toggleViaturaAtivo, listViaturaHistorico, gerarLinkRonda, listRondasByViatura } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 
 export default function ViaturasPage() {
   const user = getUser()
@@ -65,6 +66,10 @@ export default function ViaturasPage() {
   useEffect(() => { carregar() }, [filtroAtivo, filtroTipo, filtroOpm, user?.cpf])
   // FIX (William 2026-09-20): resetar paginacao quando filtros mudam
   useEffect(() => { setPaginaAtual(1) }, [filtroAtivo, filtroTipo, filtroOpm, filtroSubordinada, filtroBusca])
+  // FIX (William 2026-09-20): auto-refresh a cada 30s pra ver mudancas
+  // de status (toggle ativo, descarga) feitas por outros operadores.
+  // Intervalo maior pq /api/viaturas/list eh mais pesado (1310 rows).
+  useAutoRefresh(carregar, { interval: 30000, paused: loading })
 
   // SÓ MATRIZES no filtro: code termina em "0000"
   const matrizes = useMemo(() => {

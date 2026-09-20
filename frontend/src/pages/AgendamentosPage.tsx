@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { Navigate, Link } from 'react-router-dom'
 import { getUser, isGestor, isAdmin, isMaster } from '../lib/auth'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { listAgendamentos, approveAgendamento, rejectAgendamento, atribuirViatura, concluirAgendamento, cancelAgendamento, listViaturas, listUnits, getUltimoOdometro, editarOdometro, excluirAgendamento, gerarLinkIfct, validarIfct, revogarLinkIfct, atualizarMotorista } from '../lib/api'
 import { parseSAT, abrirSATPopup, type SatResult } from '../lib/sat-parser'
 import { STATUS_AGENDAMENTO } from '../lib/constants'
@@ -53,6 +54,10 @@ export default function AgendamentosPage() {
   }
 
   useEffect(() => { carregar() }, [filtro, user?.cpf])
+  // FIX (William 2026-09-20): auto-refresh a cada 15s pra ver novos
+  // agendamentos criados por outros operadores sem precisar F5.
+  // Pausa enquanto loading inicial pra evitar duplicar requests.
+  useAutoRefresh(carregar, { interval: 15000, paused: loading })
 
   async function handleApprove(id: number) {
     if (!user) return

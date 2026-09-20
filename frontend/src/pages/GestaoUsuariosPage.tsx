@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { getUser, isAdmin } from '../lib/auth'
 import { listAllUsers, setViaturasRole, listUnits } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 
 export default function GestaoUsuariosPage() {
   const user = getUser()
@@ -48,6 +49,9 @@ export default function GestaoUsuariosPage() {
   }
 
   useEffect(() => { carregar() }, [])
+  // FIX (William 2026-09-20): auto-refresh a cada 30s pra ver usuarios
+  // novos cadastrados.
+  useAutoRefresh(carregar, { interval: 30000, paused: loading })
 
   // FIX (William 2026-09-14 v62): helper pra resumir unidades na tabela.
   // Quando TODAS as unidades selecionadas compartilham o mesmo commandUnit
