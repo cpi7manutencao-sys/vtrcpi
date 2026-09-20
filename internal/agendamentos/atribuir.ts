@@ -82,8 +82,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Valida que a viatura existe
-  const vtrRes = await sql`SELECT id, ativo FROM viaturas WHERE id = ${viaturaId} LIMIT 1`;
+  const vtrRes = await sql`SELECT id, ativo, opm FROM viaturas WHERE id = ${viaturaId} LIMIT 1`;
   if (!vtrRes.rows[0]) return res.status(404).json({ ok: false, error: "Viatura nao encontrada" });
+
+  // FIX (William 2026-09-20 v68): REGRA de atribuicao.
+  // Quem pode atribuir viatura: editor/admin que cobre a unidadeRequerente
+  // (gestor da unidade solicitada) OU cobre a unidade da viatura (opm da viatura).
+  // Lista CRUA do unidadesEditor/unidadesGestor do user.
+  //
+  // Antes (v54): so checava role (editor/admin/master), sem checar unidade.
+  // Bug: FABIO (12BPMI editor ug=[13]) atribuia viatura em agendamento
+  // de outra unidade (CPI-7).
+  const unidadesUser = user.viaturasRole === "gestor"
+    ? parseJsonArray(user.unidadesGestor)
+    : parseJsonArray(user.unidadesEditor || user.unidadesGestor);
+  const unidadesNum = unidadesUser.map((u: any) => Number(u));
+  const vtrOpm = vtrRes.rows[0].opm ? Number(vtrRes.rows[0].opm) : null;
+  const cobreReq = ag.unidadeRequerente && unidadesNum.includes(Number(ag.unidadeRequerente));
+  const cobreVtr = vtrOpm && unidadesNum.includes(vtrOpm);
+  if (!cobreReq && !cobreVtr) {
+    return res.status(403).json({
+      ok: false,
+      error: "Apenas o editor da unidade solicitada (ou da viatura) pode atribuir viatura",
+    });
+  }
 
   // FIX (William 2026-09-14 v59): verifica conflito de horario pra MESMA
   // viatura no mesmo dia. A regra de overlap (em string "HH:MM"):
@@ -226,4 +248,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     emailEnviado: emailResult?.ok || false,
     emailErro: emailResult?.ok ? undefined : emailResult?.error,
   });
+}
+
+function parseJsonArray(val: any): number[] {
+  if (Array.isArray(val)) return val;
+  if (typeof val === "string") {
+    try { return JSON.parse(val); } catch { return []; }
+  }
+  return [];
 }

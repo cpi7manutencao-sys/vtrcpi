@@ -46,22 +46,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ ok: false, error: "Agendamento nao esta pendente (status=" + ag.status + ")" });
   }
 
-  // FIX (William 2026-09-20 v67): REGRA "PARTES INTERESSADAS"
-  // O user pode aprovar se cobrir unidadeRequerente OU unidadeOrigem
-  // do agendamento (nao exige expansao hierarquica). Lista CRUA do
-  // unidadesGestor/unidadesEditor do user (sem getUserUnidadesAutorizadas).
+  // FIX (William 2026-09-20 v68): APROVACAO soh pelo GESTOR DA UNIDADE SOLICITADA.
+  // Antes (v67): permitia aprovar se cobrisse unidadeRequerente OU unidadeOrigem.
+  // Problema: o proprio FABIO (gestor do 12BPMI=origem) aprovava pedidos FEITOS
+  // POR ELE pra outra unidade (ex: CPI-7=ur=11). Conflito de interesse.
+  // Regra correta: soh o gestor da unidade DESTINO (unidadeRequerente) aprova.
+  // A regra "partes interessadas" continua soh pra VISIBILIDADE (ver a solicitacao).
   //
-  // Master/admin continuam cobrindo as unidades em unidadesGestor (lista explicita).
-  // Se master/admin nao tem a unidade na lista, NAO pode aprovar.
+  // Lista CRUA do unidadesGestor/unidadesEditor do user (sem expansao hierarquica).
+  // Master/admin continuam cobrindo unidades em unidadesGestor (lista explicita).
   const unidades = user.viaturasRole === "gestor"
     ? parseJsonArray(user.unidadesGestor)
     : parseJsonArray(user.unidadesEditor || user.unidadesGestor);
   const unidadesNum = unidades.map((u: any) => Number(u));
   let podeAprovar = false;
   if (ag.unidadeRequerente && unidadesNum.includes(Number(ag.unidadeRequerente))) {
-    podeAprovar = true;
-  }
-  if (!podeAprovar && ag.unidadeOrigem && unidadesNum.includes(Number(ag.unidadeOrigem))) {
     podeAprovar = true;
   }
   // Se tem viatura atribuida, verifica se eh da unidade autorizada
@@ -73,7 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
   if (!podeAprovar) {
-    return res.status(403).json({ ok: false, error: "Voce nao tem permissao pra aprovar pedidos dessa unidade/viatura" });
+    return res.status(403).json({ ok: false, error: "Apenas o gestor da unidade solicitada pode aprovar" });
   }
 
   const ts = now();

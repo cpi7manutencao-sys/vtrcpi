@@ -37,16 +37,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ ok: false, error: "Agendamento nao esta pendente" });
   }
 
-  // FIX (William 2026-09-20 v67): REGRA "PARTES INTERESSADAS"
-  // O user pode rejeitar se cobrir unidadeRequerente OU unidadeOrigem.
+  // FIX (William 2026-09-20 v68): REJEICAO soh pelo GESTOR DA UNIDADE SOLICITADA.
+  // Mesma regra da aprovacao: soh o gestor da unidade DESTINO (unidadeRequerente)
+  // pode rejeitar. unidadeOrigem nao conta mais (era conflito de interesse).
   // Master/admin continuam cobrindo unidades em unidadesGestor (lista explicita).
   if (user.viaturasRole !== "admin" && !user.isMaster) {
     const unidadesGestor = parseJsonArray(user.unidadesGestor);
     const unidadesNum = unidadesGestor.map((u: any) => Number(u));
     const cobreReq = ag.unidadeRequerente && unidadesNum.includes(Number(ag.unidadeRequerente));
-    const cobreOrig = ag.unidadeOrigem && unidadesNum.includes(Number(ag.unidadeOrigem));
-    if (!cobreReq && !cobreOrig) {
-      return res.status(403).json({ ok: false, error: "Voce nao tem permissao pra rejeitar pedidos dessa unidade" });
+    if (!cobreReq) {
+      return res.status(403).json({ ok: false, error: "Apenas o gestor da unidade solicitada pode rejeitar" });
     }
   }
 
