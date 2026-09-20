@@ -214,6 +214,10 @@ const COLUMN_CAMEL_MAP: Record<string, string> = {
   rondadopor: "rondadoPor",
   textolivre: "textoLivre",
   unidadepertence: "unidadePertence",
+  // FIX (William 2026-09-20 v72): sem isso, o PDF nao renderizava a
+  // assinatura do rondante porque checava r.assinaturaSvg (camelCase)
+  // mas recebia r.assinaturasvg (lowercase) do camelizeRows.
+  assinaturasvg: "assinaturaSvg",
   preenchidoem: "preenchidoEm",
 
   // ========== ifctAbastecimentos (FIX William 2026-09-20) ==========
