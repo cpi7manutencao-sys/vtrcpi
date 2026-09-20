@@ -25,6 +25,7 @@ import * as unitsCreate from "../internal/units/create";
 import * as unitsGetByCode from "../internal/units/get-by-code";
 import * as unitsList from "../internal/units/list";
 import * as unitsListHierarchical from "../internal/units/list-hierarchical";
+import * as unitsListMatrizes from "../internal/units/list-matrizes";
 import * as unitsUpdate from "../internal/units/update";
 import * as unitsUpsert from "../internal/units/upsert";
 
@@ -99,6 +100,7 @@ const routes: Record<string, HandlerModule> = {
   "/api/units/get-by-code": unitsGetByCode as HandlerModule,
   "/api/units/list": unitsList as HandlerModule,
   "/api/units/list-hierarchical": unitsListHierarchical as HandlerModule,
+  "/api/units/list-matrizes": unitsListMatrizes as HandlerModule,
   "/api/units/update": unitsUpdate as HandlerModule,
   "/api/units/upsert": unitsUpsert as HandlerModule,
 

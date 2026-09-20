@@ -37,11 +37,11 @@ export default function CompletarCadastroPage() {
 
   async function loadUnits() {
     try {
-      const data: any = await apiFetch(`/api/units/list`);
+      // FIX (William 2026-09-19): usa endpoint dedicado de matrizes
+      // (units/list retorna vazio pra user em cadastro que eh viewer sem unit)
+      const data: any = await apiFetch(`/api/units/list-matrizes`);
       if (data.ok) {
-        // Mostrar SÓ matrizes raiz (terminadas em 0000) + opção "OUTRA"
-        const raizes = data.units.filter((u: Unit) => u.code.endsWith("0000") || u.code.endsWith("000"));
-        setUnits(raizes);
+        setUnits(data.units);
       }
     } catch (e: any) {
       setErro(`Erro ao carregar unidades: ${e.message}`);
