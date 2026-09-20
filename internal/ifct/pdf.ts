@@ -417,26 +417,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     timestamp: ag.concluidoEm || ag.aprovadoEm || Date.now(),
   });
   // FIX (William 2026-09-20 v71): infoTxt fica LOGO abaixo do box de
-  // assinatura (4pt de gap) e ALINHADO A DIREITA (mesmo X do
-  // "Baseado no Impresso..."). Depois "Baseado..." fica mais abaixo
-  // com folga clara de 18pt.
+  // assinatura (4pt de gap), na MESMA COLUNA do "Baseado..." (coluna
+  // direita), MESMO X, MAS ACIMA dele com folga clara de 18pt.
   y += expHdrH + expBoxH + 4;
-  // Nome do gestor (IMEDIATAMENTE abaixo do box, ALINHADO A DIREITA)
+  // Nome do gestor (IMEDIATAMENTE abaixo do box, mesma coluna do "Baseado...")
   const infoTxt = [
     expedidor?.postoGraduacao || "Cb PM",
     expedidor?.warName || expedidor?.name || "WILLIAM",
     expedidor?.re ? `RE ${expedidor.re}${expedidor.digre ? `-${expedidor.digre}` : ""}` : "",
   ].filter(Boolean).join(" ");
-  // Alinha a direita na coluna do "Baseado..." (largura 200pt a partir
-  // de A4_W - M - 200). Mede o texto pra terminar na borda direita.
-  const infoTxtWidth = fontBold.widthOfTextAtSize(infoTxt, 9);
   page1.drawText(infoTxt, {
-    x: A4_W - M - 200 + 200 - infoTxtWidth,
+    x: A4_W - M - 200,
     y: A4_H - y - 9, size: 9, font: fontBold,
   });
   y += 18;
 
-  // "Baseado no Impresso..." (mais abaixo, com folga)
+  // "Baseado no Impresso..." (mesmo X, mais abaixo com folga)
   page1.drawText("Baseado no Impresso Grafico do CSM/M Int", {
     x: A4_W - M - 200, y: A4_H - y - 6, size: 8, font: fontReg, color: GRAY_TEXT,
   });
@@ -522,13 +518,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     timestamp: encerramento?.dataHora || ag.concluidoEm || Date.now(),
   });
   // FIX (William 2026-09-20 v71): nome do condutor fica LOGO abaixo do
-  // box de assinatura (3pt de gap) e ALINHADO A DIREITA, mesma direcao
-  // do EXPEDIDOR.
+  // box de assinatura (3pt de gap), na coluna direita da pagina (mesmo
+  // padrao do EXPEDIDOR).
   y2 += condAssLabelH + condAssBoxH + 3;
-  // Nome do condutor (alinhado a direita)
+  // Nome do condutor (coluna direita, alinhado a esquerda)
   const condTxtWidth = fontBold.widthOfTextAtSize(condutorTexto, 10);
   page2.drawText(condutorTexto, {
-    x: M + CONTENT_W - condTxtWidth,
+    x: M + CONTENT_W - 200,
     y: A4_H - y2 - 10, size: 10, font: fontBold, color: BLACK,
   });
   y2 += 16;
