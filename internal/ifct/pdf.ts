@@ -727,7 +727,18 @@ function drawCellText(
   const fontSize = size || 9;
   const dx = opts.dx ?? 4;
   const align = opts.align || "left";
-  page.drawText(text, { x: x + dx, y, size: fontSize, font, color: opts.color || BLACK });
+  let drawX = x + dx;
+  if (align === "right") {
+    // FIX (William 2026-09-20 v71): medir o texto e alinhar pela direita
+    // da celula. Antes o align era ignorado e o texto comecava em x+dx,
+    // atravessando as linhas verticais entre colunas.
+    const textWidth = font.widthOfTextAtSize(text, fontSize);
+    drawX = x + w - textWidth - dx;
+  } else if (align === "center") {
+    const textWidth = font.widthOfTextAtSize(text, fontSize);
+    drawX = x + (w - textWidth) / 2;
+  }
+  page.drawText(text, { x: drawX, y, size: fontSize, font, color: opts.color || BLACK });
 }
 
 // Linha da tabela Hodometro (Partida, Retorno, Diferenca)
