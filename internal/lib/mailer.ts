@@ -20,7 +20,7 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN || "";
 const FROM_NAME = process.env.SMTP_FROM_NAME || "Sistema de Viaturas CPI-7";
-const FROM_EMAIL = process.env.SMTP_FROM_EMAIL || "cpi7manutencao@gmail.com";
+const FROM_EMAIL = process.env.SMTP_FROM_EMAIL || "cpi7subfrota.sorocaba@gmail.com";
 
 let _accessToken: string | null = null;
 let _accessTokenExp: number = 0;
