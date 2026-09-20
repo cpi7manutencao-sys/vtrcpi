@@ -42,8 +42,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Definir role/unidades (FIX William 2026-09-10 v41: schema camelCase)
   const newRole = viaturasRole || "viewer";
-  const newGestor = JSON.stringify(unidadesGestor || []);
-  const newEditor = JSON.stringify(unidadesEditor || []);
+  // FIX (William 2026-09-19): se for gestor/editor e NAO veio unidadesGestor,
+  // usa o unitId atribuido como fallback. Evita o user ficar orfao.
+  let finalGestor: number[] = unidadesGestor || [];
+  if ((newRole === "gestor" || newRole === "admin") && finalGestor.length === 0 && unitId) {
+    finalGestor = [unitId];
+  }
+  let finalEditor: number[] = unidadesEditor || [];
+  if ((newRole === "editor" || newRole === "gestor" || newRole === "admin") && finalEditor.length === 0 && unitId) {
+    finalEditor = [unitId];
+  }
+  const newGestor = JSON.stringify(finalGestor);
+  const newEditor = JSON.stringify(finalEditor);
   const finalUnitId = unitId !== undefined ? unitId : target.unit;
 
   await sql`

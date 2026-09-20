@@ -88,12 +88,20 @@ export default function AprovacaoPage() {
     if (!cfg) return;
     setProcessing(userId);
     try {
+      // FIX (William 2026-09-19): se for gestor/editor e tiver unidade selecionada,
+      // envia unidadesGestor/unidadesEditor com base na unidade atribuida.
+      // Isso garante que o novo gestor/admin veja as viaturas/agendamentos da unidade.
+      const unidadesParaEnviar = (cfg.viaturasRole === "gestor" || cfg.viaturasRole === "admin")
+        ? [cfg.unitId].filter((x): x is number => !!x)
+        : [];
       const data: any = await apiFetch(`/api/users/approve`, {
         method: "POST",
         body: JSON.stringify({
           userId,
           viaturasRole: cfg.viaturasRole,
           unitId: cfg.unitId,
+          unidadesGestor: unidadesParaEnviar,
+          unidadesEditor: unidadesParaEnviar,
         }),
       });
       if (data.ok) {
