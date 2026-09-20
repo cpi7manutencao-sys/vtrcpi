@@ -577,14 +577,70 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     page2.drawText(r?.unidadePertence || "—", { x: M + col4W * 3 + 14, y: A4_H - y2 - col4H + 5, size: 9, font: fontReg });
     y2 += col4H + 6;
 
-    // Assinatura do Rondante (placeholder)
+    // Assinatura do Rondante
     const asRondH = 30;
     page2.drawRectangle({ x: M, y: A4_H - y2 - asRondH, width: CONTENT_W, height: asRondH, borderColor: BLACK, borderWidth: 0.5 });
     if (r?.assinaturaSvg) {
-      // Tem SVG mas nao renderizamos (substituido por placeholder texto)
-      page2.drawText("[ Assinatura gravada pelo app - validada via token ]", {
-        x: M + 4, y: A4_H - y2 - asRondH / 2 - 4, size: 9, font: fontItalic, color: GRAY_TEXT,
-      });
+      // FIX (William 2026-09-20 v72): renderizar o SVG da assinatura do
+      // rondante (vinha do celular). O SignaturePad gera um SVG simples:
+      // <svg viewBox="0 0 W H"><path d="M x1 y1 L x2 y2 L ..."/></svg>
+      // Extrai cada path e desenha linhas usando drawLine do pdf-lib,
+      // fazendo fit na box de asRondH (30pt) x CONTENT_W (523pt).
+      const svgMatch = r.assinaturaSvg.match(/viewBox="\d+\s+(\d+)\s+(\d+)"/);
+      const svgW = svgMatch ? parseFloat(svgMatch[1]) : 300;
+      const svgH = svgMatch ? parseFloat(svgMatch[2]) : 120;
+      const pathMatch = r.assinaturaSvg.match(/<path[^>]*d="([^"]+)"/);
+      if (pathMatch) {
+        const d = pathMatch[1];
+        // Escala: mapear viewBox (svgW x svgH) -> box (CONTENT_W x asRondH)
+        // Mantem aspect ratio dentro do box
+        const boxX = M + 4;
+        const boxY = A4_H - y2 - asRondH + 4;
+        const boxW = CONTENT_W - 8;
+        const boxH = asRondH - 8;
+        const scale = Math.min(boxW / svgW, boxH / svgH);
+        const offX = boxX + (boxW - svgW * scale) / 2;
+        const offY = boxY + (boxH - svgH * scale) / 2;
+        // Parse path commands: M x y (moveTo), L x y (lineTo)
+        const tokens = d.match(/[MLml]\s*[-+\d.]+\s+[-+\d.]+/g) || [];
+        let lastX = 0, lastY = 0;
+        for (const tk of tokens) {
+          const m = tk.match(/^([MLml])\s*([-+\d.]+)\s+([-+\d.]+)/);
+          if (!m) continue;
+          const cmd = m[1];
+          const px = parseFloat(m[2]);
+          const py = parseFloat(m[3]);
+          let x = px, y = py;
+          if (cmd === cmd.toLowerCase()) {
+            // relative: soma ao ultimo ponto
+            x = lastX + px;
+            y = lastY + py;
+          }
+          if (cmd === 'M' || cmd === 'm') {
+            lastX = x;
+            lastY = y;
+          } else if (cmd === 'L' || cmd === 'l') {
+            // Desenha linha de (lastX, lastY) para (x, y) com escala e offset
+            // Y do SVG cresce para baixo, Y do PDF cresce para cima
+            const x1 = offX + lastX * scale;
+            const y1 = offY + (svgH - lastY) * scale;
+            const x2 = offX + x * scale;
+            const y2_ = offY + (svgH - y) * scale;
+            page2.drawLine({
+              start: { x: x1, y: y1 },
+              end: { x: x2, y: y2_ },
+              thickness: 1.5, color: BLACK,
+            });
+            lastX = x;
+            lastY = y;
+          }
+        }
+      } else {
+        // Fallback se nao conseguiu parsear o path
+        page2.drawText("[ Assinatura gravada pelo app - validada via token ]", {
+          x: M + 4, y: A4_H - y2 - asRondH / 2 - 4, size: 9, font: fontItalic, color: GRAY_TEXT,
+        });
+      }
     } else {
       page2.drawText("[ Area de desenho livre - assina com dedo no celular ]", {
         x: M + 4, y: A4_H - y2 - asRondH / 2 - 4, size: 9, font: fontItalic, color: GRAY_TEXT,
