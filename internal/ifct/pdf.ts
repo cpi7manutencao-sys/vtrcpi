@@ -213,6 +213,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const page1 = pdfDoc.addPage([A4_W, A4_H]);
   let y = M;
 
+  // ============================================================
+  // FIX (William 2026-09-20 v74): cabecalho "Subfrota" inclui a MATRIZ
+  // do gestor que APROVOU (se diferente de CPI-7).
+  //
+  // Regra:
+  //   - "Subfrota CPI-7" sempre aparece
+  //   - Se o gestor que aprovou eh de outra matriz (ex: 12BPMI, 55BPMI),
+  //     adiciona " / <siglaOutraMatriz>"
+  //   - Filhas (sub-Cias) sao categorizadas pela matriz pai
+  //   - Auto-aprovacao (master sem ug especifica) -> so "Subfrota CPI-7"
+  // ============================================================
+  let subfrotaText = "Subfrota CPI-7";
+  if (ag.aprovadopor) {
+    try {
+      const aprRes = await sql`SELECT unidadesgestor FROM users WHERE id = ${ag.aprovadopor} LIMIT 1`;
+      const ug = aprRes.rows[0]?.unidadesgestor;
+      if (Array.isArray(ug) && ug.length > 0) {
+        // Cruzar com MATRIZES (commandUnit=11 e parentUnit IS NULL)
+        // e filtrar so as que estao em unidadesGestor do aprovador
+        const matsRes = await sql`
+          SELECT u.id, u.sigla, u.name
+          FROM units u
+          WHERE u.id = ANY(${[ug]}::int[])
+            AND u.commandUnit = 11
+            AND u.parentUnit IS NULL
+          ORDER BY u.id
+        `;
+        const mats = matsRes.rows;
+        // Filtra matrizes diferentes de CPI-7 (id=11)
+        const outrasMatrizes = mats.filter((m: any) => m.id !== 11);
+        if (outrasMatrizes.length === 1) {
+          subfrotaText = `Subfrota CPI-7 / ${outrasMatrizes[0].sigla}`;
+        } else if (outrasMatrizes.length > 1) {
+          // Multiplas matrizes no gestor: pega a ancestral da unidadeRequerente
+          // (filha -> sobe ate achar matriz que esta na lista)
+          let curr = ag.unidaderequerente || ag.unidadeRequerente;
+          const visited = new Set<number>();
+          while (curr && !visited.has(curr)) {
+            visited.add(curr);
+            const match = outrasMatrizes.find((m: any) => m.id === curr);
+            if (match) {
+              subfrotaText = `Subfrota CPI-7 / ${match.sigla}`;
+              break;
+            }
+            const u = (await sql`SELECT parentUnit FROM units WHERE id = ${curr} LIMIT 1`).rows[0];
+            if (!u || !u.parentunit) break;
+            curr = u.parentunit;
+          }
+        }
+        // Se so tem CPI-7 nas mats (ou nenhuma): mantem "Subfrota CPI-7"
+      }
+    } catch (e: any) {
+      console.log(`[pdf] erro ao resolver matriz do aprovador: ${e.message}`);
+      // fallback: fica "Subfrota CPI-7"
+    }
+  }
+
   // (A) Bloco: BRASAO + SECRETARIA/SUBFROTA + PARTIDA/RETORNO
   const blocoTopH = 56;
   // Brasao
@@ -239,7 +296,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   page1.drawText("Secretaria da Seguranca Publica", {
     x: secX + 4, y: A4_H - M - 14, size: 9.5, font: fontReg, color: BLACK,
   });
-  page1.drawText(`Subfrota ${unidadeRequerente?.sigla || unidadeRequerente?.name || "CPI-7"}`, {
+  page1.drawText(subfrotaText, {
     x: secX + 4, y: A4_H - M - linhaH - 12, size: 11, font: fontBold, color: BLACK,
   });
   page1.drawText(unidadeOrigem?.cidade || unidadeOrigem?.municipio || "Sorocaba", {
