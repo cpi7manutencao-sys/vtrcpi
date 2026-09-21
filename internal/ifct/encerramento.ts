@@ -66,6 +66,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // INSERT ou UPDATE (UNIQUE por agendamentoId)
+  // FIX (William 2026-09-20 v75): ao salvar um campo (ex: so manutencao),
+  // NAO sobrescrever os outros com null. COALESCE(excluded.X, table.X)
+  // mantem o valor antigo quando o novo for null/vazio. Sem isso, o
+  // INSERT...ON CONFLICT DO UPDATE zera os campos nao enviados,
+  // fazendo o motorista perder dados ja salvos quando salva parcialmente.
   await sql`
     INSERT INTO ifctEncerramentos (
       agendamentoId, dataHora, hodometroPartida, hodometroRetorno, hodometroDiferenca,
@@ -84,16 +89,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     )
     ON CONFLICT(agendamentoId) DO UPDATE SET
       dataHora = excluded.dataHora,
-      hodometroPartida = excluded.hodometroPartida,
-      hodometroRetorno = excluded.hodometroRetorno,
-      hodometroDiferenca = excluded.hodometroDiferenca,
-      defeitosVerificados = excluded.defeitosVerificados,
-      observacoes = excluded.observacoes,
-      novaApresentacaoData = excluded.novaApresentacaoData,
-      novaApresentacaoHora = excluded.novaApresentacaoHora,
-      novaApresentacaoLocal = excluded.novaApresentacaoLocal,
-      consideracoesVeiculo = excluded.consideracoesVeiculo,
-      assinaturaCondutorSvg = excluded.assinaturaCondutorSvg,
+      hodometroPartida = COALESCE(excluded.hodometroPartida, ifctEncerramentos.hodometroPartida),
+      hodometroRetorno = COALESCE(excluded.hodometroRetorno, ifctEncerramentos.hodometroRetorno),
+      hodometroDiferenca = COALESCE(excluded.hodometroDiferenca, ifctEncerramentos.hodometroDiferenca),
+      defeitosVerificados = COALESCE(excluded.defeitosVerificados, ifctEncerramentos.defeitosVerificados),
+      observacoes = COALESCE(excluded.observacoes, ifctEncerramentos.observacoes),
+      novaApresentacaoData = COALESCE(excluded.novaApresentacaoData, ifctEncerramentos.novaApresentacaoData),
+      novaApresentacaoHora = COALESCE(excluded.novaApresentacaoHora, ifctEncerramentos.novaApresentacaoHora),
+      novaApresentacaoLocal = COALESCE(excluded.novaApresentacaoLocal, ifctEncerramentos.novaApresentacaoLocal),
+      consideracoesVeiculo = COALESCE(excluded.consideracoesVeiculo, ifctEncerramentos.consideracoesVeiculo),
+      assinaturaCondutorSvg = COALESCE(excluded.assinaturaCondutorSvg, ifctEncerramentos.assinaturaCondutorSvg),
       ipOrigem = excluded.ipOrigem,
       userAgentOrigem = excluded.userAgentOrigem
   `;
