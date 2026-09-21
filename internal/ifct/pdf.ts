@@ -227,8 +227,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let subfrotaText = "Subfrota CPI-7";
   if (ag.aprovadoPor) {
     try {
-      const aprRes = await sql`SELECT unidadesgestor FROM users WHERE id = ${ag.aprovadopor} LIMIT 1`;
-      const ug = aprRes.rows[0]?.unidadesgestor;
+      const aprRes = await sql`SELECT unidadesgestor FROM users WHERE id = ${ag.aprovadoPor} LIMIT 1`;
+      // camelizeRows converte unidadesgestor -> unidadesGestor
+      const ug = aprRes.rows[0]?.unidadesGestor;
       if (Array.isArray(ug) && ug.length > 0) {
         // Cruzar com MATRIZES (commandUnit=11 e parentUnit IS NULL)
         // e filtrar so as que estao em unidadesGestor do aprovador
