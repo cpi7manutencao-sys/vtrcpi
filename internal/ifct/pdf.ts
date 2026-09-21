@@ -225,7 +225,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   //   - Auto-aprovacao (master sem ug especifica) -> so "Subfrota CPI-7"
   // ============================================================
   let subfrotaText = "Subfrota CPI-7";
-  if (ag.aprovadopor) {
+  if (ag.aprovadoPor) {
     try {
       const aprRes = await sql`SELECT unidadesgestor FROM users WHERE id = ${ag.aprovadopor} LIMIT 1`;
       const ug = aprRes.rows[0]?.unidadesgestor;
