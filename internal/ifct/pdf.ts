@@ -801,14 +801,17 @@ function formatDate(ts: number | string | null | undefined): string {
   if (ts === null || ts === undefined) return "—";
   const d = new Date(typeof ts === "string" ? parseInt(ts) : ts);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("pt-BR");
+  // FIX (William 2026-09-20 v75): forcar timezone America/Sao_Paulo
+  // pq o servidor Vercel roda em UTC. Sem isso, datas armazenadas como
+  // timestamp UTC aparecem 3h adiantadas (BRT eh UTC-3, sem horario de verao).
+  return d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
 function formatDateTime(ts: number | string | null | undefined): string {
   if (ts === null || ts === undefined) return "—";
   const d = new Date(typeof ts === "string" ? parseInt(ts) : ts);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleString("pt-BR");
+  return d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
 function formatNumber(n: number): string {
