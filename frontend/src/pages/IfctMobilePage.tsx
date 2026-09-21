@@ -8,7 +8,8 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
+import { QRCodeSVG } from 'qrcode.react'
 
 // API publica (sem Authorization)
 async function apiPublic(url: string, opts: RequestInit = {}): Promise<any> {
@@ -31,6 +32,14 @@ export default function IfctMobilePage() {
 
   // Modal de qual acao
   const [modal, setModal] = useState<null | 'encerramento' | 'abastecimento' | 'ronda'>(null)
+
+  // FIX (William 2026-09-20 v76): modal com QRCode pra rondante escanear
+  const [qrcodeOpen, setQrcodeOpen] = useState(false)
+
+  // FIX (William 2026-09-20 v76): se acessar via ?mode=ronda, abre direto
+  // o modal de Ronda (sem o rondante ter que passar pelo fluxo do motorista)
+  const [searchParams] = useSearchParams()
+  const modeRonda = searchParams.get('mode') === 'ronda'
 
   // FIX (William 2026-09-09 v31): fluxo de boas-vindas
   // Antes da home do IFCT mobile, o motorista precisa:
@@ -130,6 +139,15 @@ export default function IfctMobilePage() {
   }
 
   useEffect(() => { carregar() }, [token])
+
+  // FIX (William 2026-09-20 v76): se o link tem ?mode=ronda (veio do
+  // QRCode do motorista), abre direto o modal de Ronda assim que o
+  // agendamento carregar. O rondante nao ve nenhum outro passo.
+  useEffect(() => {
+    if (modeRonda && ag?.viatura && !loading) {
+      setModal('ronda')
+    }
+  }, [modeRonda, ag, loading])
 
   // Finalizar
   async function finalizar() {
@@ -400,6 +418,21 @@ export default function IfctMobilePage() {
         </button>
       )}
 
+      {/* FIX (William 2026-09-20 v76): botao gerar QRCode pra rondante escanear */}
+      {!finalizado && (
+        <button
+          onClick={() => setQrcodeOpen(true)}
+          style={{
+            width: '100%', padding: 14, fontSize: 15, fontWeight: 600,
+            background: 'white', color: '#7b1fa2',
+            border: '2px solid #7b1fa2', borderRadius: 8, cursor: 'pointer',
+            marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+        >
+          📱 Gerar QRCode pra Rondante
+        </button>
+      )}
+
       {finalizado && (
         <div style={{ background: '#e8f5e9', border: '1px solid #4caf50', borderRadius: 8, padding: 16, textAlign: 'center', color: '#2e7d32' }}>
           <strong>✅ ICT {ag.ifctStatus === 'validado' ? 'validado' : 'preenchido'}</strong>
@@ -425,6 +458,14 @@ export default function IfctMobilePage() {
       )}
       {modal === 'ronda' && ag?.viatura && (
         <RondaModal token={token!} onClose={() => setModal(null)} onSaved={carregar} />
+      )}
+
+      {/* FIX (William 2026-09-20 v76): QRCode pra rondante escanear */}
+      {qrcodeOpen && token && (
+        <QrcodeRondaModal
+          token={token}
+          onClose={() => setQrcodeOpen(false)}
+        />
       )}
     </div>
   )
@@ -1002,6 +1043,39 @@ function RondaModal({ token, onClose, onSaved }: { token: string; onClose: () =>
 }
 
 // ============================================================
+// QrcodeRondaModal - gera QRCode que o rondante escaneia pra abrir
+// direto o modal de Ronda no celular dele (sem precisar do link do IFCT).
+// ============================================================
+function QrcodeRondaModal({ token, onClose }: { token: string; onClose: () => void }) {
+  const url = `${window.location.origin}${window.location.pathname}#/ifct/${token}?mode=ronda`
+  return (
+    <Modal titulo="📱 QRCode da Ronda" onClose={onClose}>
+      <p style={{ fontSize: 14, marginBottom: 12 }}>
+        Peça pro rondante escanear este QRCode com a câmera do celular dele.
+        Vai abrir direto a tela de Ronda (ele não vê KM, manutenção ou abastecimento).
+      </p>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 16, background: 'white', borderRadius: 8, marginBottom: 12 }}>
+        <QRCodeSVG value={url} size={224} level="M" includeMargin={true} />
+      </div>
+      <div style={{ background: '#f5f5f5', padding: 10, borderRadius: 6, marginBottom: 8, fontSize: 12, wordBreak: 'break-all' }}>
+        {url}
+      </div>
+      <button
+        onClick={() => {
+          navigator.clipboard?.writeText(url)
+          alert('Link copiado!')
+        }}
+        style={{
+          width: '100%', padding: 10, fontSize: 14, fontWeight: 600,
+          background: '#7b1fa2', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer',
+        }}
+      >
+        📋 Copiar link (alternativa ao QRCode)
+      </button>
+    </Modal>
+  )
+}
+
 // Modal - wrapper generico
 // ============================================================
 function Modal({ titulo, onClose, children }: { titulo: string; onClose: () => void; children: React.ReactNode }) {
