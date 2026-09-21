@@ -48,6 +48,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const encRes = await sql`SELECT * FROM ifctEncerramentos WHERE agendamentoId = ${ag.id} LIMIT 1`;
   const encerramento = encRes.rows[0] || null;
 
+  // FIX (William 2026-09-20 v77): tambem retorna rondas (pra UI saber se
+  // ja tem ronda salva - usado no QRCode do rondante pra nao abrir
+  // modal em loop depois de salvar)
+  const rondasRes = await sql`SELECT id, rondadoPor, posto, nomeGuerra, re, digre, unidadePertence, textoLivre, assinaturaSvg IS NOT NULL as temAssinatura, criadoEm FROM rondas WHERE agendamentoId = ${ag.id} ORDER BY criadoEm DESC`;
+  const rondas = rondasRes.rows;
+
   return res.status(200).json({
     ok: true,
     agendamento: {
@@ -93,6 +99,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Viatura + unidade
       viatura,
       unidadeRequerente,
+      // FIX (William 2026-09-20 v77): retorna rondas pra UI nao abrir
+      // modal em loop depois do rondante salvar pelo QRCode
+      rondas,
     },
   });
 }

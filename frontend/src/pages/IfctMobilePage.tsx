@@ -69,6 +69,9 @@ export default function IfctMobilePage() {
       .then(async ([d, abs]) => {
         setAg(d.agendamento)
         setAbastecimentos(abs.abastecimentos || [])
+        // FIX (William 2026-09-20 v77): rondas vem do get-by-token agora
+        // (junto com o agendamento), nao precisa endpoint separado
+        setRondas(d.agendamento?.rondas || [])
         // FIX (William 2026-09-09 v32): decide etapa APENAS na primeira carga
         // Em chamadas subsequentes (depois de confirmar KM ou manutencao),
         // a etapa eh controlada manualmente pelo fluxo de boas-vindas.
