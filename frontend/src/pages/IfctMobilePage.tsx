@@ -194,9 +194,14 @@ export default function IfctMobilePage() {
             Confirme (ou edite) o KM inicial da viatura no momento em que voce esta assumindo.
           </p>
 
-          {sugestaoKm != null && (
+          {sugestaoKm != null ? (
             <div style={{ background: '#e3f2fd', padding: 12, borderRadius: 6, marginBottom: 12, fontSize: 13 }}>
               <strong>Último KM registrado nesta viatura:</strong> {sugestaoKm.toLocaleString('pt-BR')} km
+            </div>
+          ) : (
+            <div style={{ background: '#fff3e0', padding: 12, borderRadius: 6, marginBottom: 12, fontSize: 13, border: '1px solid #ffb74d' }}>
+              <strong>Primeiro uso desta viatura neste sistema.</strong><br />
+              Informe o KM inicial do hodômetro manualmente.
             </div>
           )}
 
