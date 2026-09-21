@@ -104,7 +104,11 @@ export default function AgendamentosPage() {
     if (!user) return
     try {
       const res = await gerarLinkIfct(user.cpf, agendamentoId)
-      const baseUrl = window.location.origin
+      // FIX (William 2026-09-21 v78): forcar o dominio correto no link gerado.
+      // window.location.origin usa o dominio que o usuario acessou (ex:
+      // vtrcpi.vercel.app antigo). Como queremos SEMPRE o dominio ativo
+      // (vtrcpi-five.vercel.app), priorizamos a env var VITE_APP_BASE_URL.
+      const baseUrl = (import.meta.env.VITE_APP_BASE_URL as string | undefined) || window.location.origin
       const url = `${baseUrl}/#/ifct/${res.linkIfct}`
       setIfctLinkModal({ url, expiraEm: res.linkIfctExpiraEm, jaExistia: res.jaExistia })
       // Tenta copiar pro clipboard em background (UX extra)
