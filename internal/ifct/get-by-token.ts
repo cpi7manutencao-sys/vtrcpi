@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // FIX (William 2026-09-20 v77): tambem retorna rondas (pra UI saber se
   // ja tem ronda salva - usado no QRCode do rondante pra nao abrir
   // modal em loop depois de salvar)
-  const rondasRes = await sql`SELECT id, rondadoPor, posto, nomeGuerra, re, digre, unidadePertence, textoLivre, assinaturaSvg IS NOT NULL as temAssinatura, criadoEm FROM rondas WHERE agendamentoId = ${ag.id} ORDER BY criadoEm DESC`;
+  const rondasRes = await sql`SELECT id, rondadoPor, posto, nomeGuerra, re, digre, unidadePertence, textoLivre, assinaturaSvg IS NOT NULL as temAssinatura, preenchidoEm FROM rondas WHERE agendamentoId = ${ag.id} ORDER BY preenchidoEm DESC`;
   const rondas = rondasRes.rows;
 
   return res.status(200).json({
