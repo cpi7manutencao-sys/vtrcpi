@@ -143,11 +143,15 @@ export default function IfctMobilePage() {
   // FIX (William 2026-09-20 v76): se o link tem ?mode=ronda (veio do
   // QRCode do motorista), abre direto o modal de Ronda assim que o
   // agendamento carregar. O rondante nao ve nenhum outro passo.
+  // FIX (William 2026-09-20 v77): so abre o modal se ainda NAO tem
+  // ronda salva. Sem isso, apos salvar o onSaved chama carregar() que
+  // dispara este useEffect de novo, abrindo o modal em loop com tela
+  // vazia (porque o rondante ja' salvou e nao precisa preencher de novo).
   useEffect(() => {
-    if (modeRonda && ag?.viatura && !loading) {
+    if (modeRonda && ag?.viatura && !loading && rondas.length === 0) {
       setModal('ronda')
     }
-  }, [modeRonda, ag, loading])
+  }, [modeRonda, ag, loading, rondas.length])
 
   // Finalizar
   async function finalizar() {
