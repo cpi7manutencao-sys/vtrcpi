@@ -16,6 +16,7 @@ import { requireAuth } from "../lib/auth";
 import { getUserById } from "../lib/agendamentos-helpers";
 import { sendEmail, isMailerConfigured } from "../lib/mailer";
 import { agendamentoAprovadoEmail } from "../lib/email-templates";
+import { getAppBaseUrl } from "../lib/config";
 
 const LINK_EXPIRA_DIAS = 7;
 const LINK_EXPIRA_MS = LINK_EXPIRA_DIAS * 24 * 60 * 60 * 1000;
@@ -61,7 +62,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const session = auth.session;
   const user = await getUserById(session.userId);
   if (!user) return res.status(404).json({ ok: false, error: "Usuario nao encontrado" });
-  if (user.viaturasRole !== "editor" && user.viaturasRole !== "admin" && !user.isMaster) {
+  // FIX (William 2026-09-22): gestor tambem atribui viatura (alem de criar e aprovar).
+  // Regra antiga exigia editor/admin/master - mas gestores das unidades
+  // precisam atribuir viatura nos agendamentos que aprovaram.
+  if (user.viaturasRole !== "editor" && user.viaturasRole !== "gestor"
+      && user.viaturasRole !== "admin" && !user.isMaster) {
     return res.status(403).json({ ok: false, error: "Sem permissao para atribuir viatura" });
   }
 
@@ -199,7 +204,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const vRes = await sql`SELECT placa, prefixo FROM viaturas WHERE id = ${agUpd.viaturaAtribuida} LIMIT 1`;
         const v = vRes.rows[0];
 
-        const appBase = (process.env.APP_BASE_URL || "http://localhost:5174").replace(/\/+$/, "");
+        const appBase = getAppBaseUrl();
         const linkIfctFull = `${appBase}/#/ifct/${linkIfct}`;
 
         const tpl = agendamentoAprovadoEmail({

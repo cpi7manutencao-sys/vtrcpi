@@ -13,6 +13,7 @@ import { sql, now } from "../lib/db";
 import { requireAuth, hasRole } from "../lib/auth";
 import { getUserById, getUserUnidadesAutorizadas } from "../lib/agendamentos-helpers";
 import { sendEmail, isMailerConfigured } from "../lib/mailer";
+import { getAppBaseUrl } from "../lib/config";
 import { ictRejeitadoEmail } from "../lib/email-templates";
 
 function formatDateBR(ts: number | string | null | undefined): string {
@@ -115,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const sol = solRes.rows[0];
 
       if (sol && sol.email) {
-        const appBase = (process.env.APP_BASE_URL || "http://localhost:5174").replace(/\/+$/, "");
+        const appBase = getAppBaseUrl();
         const linkIfctFull = `${appBase}/#/ifct/${ag.linkIfct}`;
         const tpl = ictRejeitadoEmail({
           motoristaPosto: ag.motoristaPosto || motoristaRes.rows[0]?.postoGraduacao || "",

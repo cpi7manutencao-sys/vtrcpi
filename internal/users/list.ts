@@ -35,6 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (search) {
     const s = `%${search.toLowerCase()}%`;
     if (onlyApproved) {
+      // Default: soh usuarios APROVADOS E ATIVOS (esconde soft-deleted)
       result = await sql`
         SELECT u.*, un.name as unitName, un.code as unitCode, un.sigla as unitSigla
         FROM users u
@@ -42,10 +43,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         WHERE (LOWER(u.name) LIKE ${s} OR LOWER(u.email) LIKE ${s}
                OR u.cpf LIKE ${s} OR u.re LIKE ${s})
           AND u.approved = TRUE
+          AND u.active = TRUE
         ORDER BY u.name
         LIMIT 200
       `;
     } else {
+      // onlyApproved=false: TODOS (incluindo inativos) pra permitir restaurar
       result = await sql`
         SELECT u.*, un.name as unitName, un.code as unitCode, un.sigla as unitSigla
         FROM users u
@@ -58,15 +61,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } else {
     if (onlyApproved) {
+      // Default: soh usuarios APROVADOS E ATIVOS (esconde soft-deleted)
       result = await sql`
         SELECT u.*, un.name as unitName, un.code as unitCode, un.sigla as unitSigla
         FROM users u
         LEFT JOIN units un ON un.id = u.unit
         WHERE u.approved = TRUE
+          AND u.active = TRUE
         ORDER BY u.name
         LIMIT 200
       `;
     } else {
+      // onlyApproved=false: TODOS (incluindo inativos) pra permitir restaurar
       result = await sql`
         SELECT u.*, un.name as unitName, un.code as unitCode, un.sigla as unitSigla
         FROM users u
