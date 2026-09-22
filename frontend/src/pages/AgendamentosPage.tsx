@@ -5,6 +5,7 @@ import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { listAgendamentos, approveAgendamento, rejectAgendamento, atribuirViatura, concluirAgendamento, cancelAgendamento, listViaturas, listUnits, getUltimoOdometro, editarOdometro, excluirAgendamento, gerarLinkIfct, validarIfct, revogarLinkIfct, atualizarMotorista } from '../lib/api'
 import { parseSAT, abrirSATPopup, type SatResult } from '../lib/sat-parser'
 import { STATUS_AGENDAMENTO } from '../lib/constants'
+import { getClientAppBaseUrl } from '../lib/app-base-url'
 
 export default function AgendamentosPage() {
   const user = getUser()
@@ -104,11 +105,10 @@ export default function AgendamentosPage() {
     if (!user) return
     try {
       const res = await gerarLinkIfct(user.cpf, agendamentoId)
-      // FIX (William 2026-09-21 v78): forcar o dominio correto no link gerado.
-      // window.location.origin usa o dominio que o usuario acessou (ex:
-      // vtrcpi.vercel.app antigo). Como queremos SEMPRE o dominio ativo
-      // (vtrcpi-five.vercel.app), priorizamos a env var VITE_APP_BASE_URL.
-      const baseUrl = (import.meta.env.VITE_APP_BASE_URL as string | undefined) || window.location.origin
+      // FIX (William 2026-09-22 v79): usa getClientAppBaseUrl() que prioriza
+      // VITE_APP_BASE_URL e redireciona dominios zumbis (vtrcpi.vercel.app)
+      // automaticamente pro canonico (vtrcpi-five.vercel.app).
+      const baseUrl = getClientAppBaseUrl()
       const url = `${baseUrl}/#/ifct/${res.linkIfct}`
       setIfctLinkModal({ url, expiraEm: res.linkIfctExpiraEm, jaExistia: res.jaExistia })
       // Tenta copiar pro clipboard em background (UX extra)

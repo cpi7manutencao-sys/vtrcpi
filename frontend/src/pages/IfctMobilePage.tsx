@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
+import { getClientAppBaseUrl } from '../lib/app-base-url'
 
 // API publica (sem Authorization)
 async function apiPublic(url: string, opts: RequestInit = {}): Promise<any> {
@@ -1054,7 +1055,10 @@ function RondaModal({ token, onClose, onSaved }: { token: string; onClose: () =>
 // direto o modal de Ronda no celular dele (sem precisar do link do IFCT).
 // ============================================================
 function QrcodeRondaModal({ token, onClose }: { token: string; onClose: () => void }) {
-  const url = `${window.location.origin}${window.location.pathname}#/ifct/${token}?mode=ronda`
+  // FIX (William 2026-09-22): usa getClientAppBaseUrl() pra redirecionar
+  // dominio zumbi (vtrcpi.vercel.app) automaticamente pro canonico.
+  const baseUrl = getClientAppBaseUrl()
+  const url = `${baseUrl}/#/ifct/${token}?mode=ronda`
   return (
     <Modal titulo="📱 QRCode da Ronda" onClose={onClose}>
       <p style={{ fontSize: 14, marginBottom: 12 }}>
