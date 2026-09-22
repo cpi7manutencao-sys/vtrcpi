@@ -80,6 +80,7 @@ import * as vtrUpsert from "../internal/viaturas/upsert";
 import * as vtrHistList from "../internal/viatura-historico/list-by-viatura";
 
 import * as debugDump from "../internal/debug/dump";
+import * as debugAppbase from "../internal/_debug/appbase";
 
 type Handler = (req: VercelRequest, res: VercelResponse) => Promise<any> | any;
 type HandlerModule = { default: Handler };
@@ -158,6 +159,7 @@ const routes: Record<string, HandlerModule> = {
   "/api/viatura-historico/list-by-viatura": vtrHistList as HandlerModule,
 
   "/api/debug/dump": debugDump as HandlerModule,
+  "/api/_debug/appbase": debugAppbase as HandlerModule,
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
