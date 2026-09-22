@@ -478,52 +478,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // assinatura (4pt de gap), na MESMA COLUNA do "Baseado..." (coluna
   // direita), MESMO X, MAS ACIMA dele com folga clara de 18pt.
   y += expHdrH + expBoxH + 4;
-  // FIX (William 2026-09-22 v80): alinhamento inteligente - o texto
-  // TERMINA na borda vertical direita do box (X = M + CONTENT_W).
-  // - Texto cabe: alinha a direita na borda do box.
-  // - Texto excede CONTENT_W: reduz fonte proporcionalmente pra caber.
-  // - JAMAIS atravessa a margem direita (borda do box).
+  // FIX (William 2026-09-22 v80): alinhamento fixo a DIREITA.
+  // - Texto SEMPRE termina na borda vertical direita do box (X = M + CONTENT_W).
+  // - Se for grande, desloca-se pra esquerda.
+  // - JAMAIS atravessa a borda direita do box.
+  // - NAO muda fonte.
   const infoTxt = [
     expedidor?.postoGraduacao || "Cb PM",
     expedidor?.warName || expedidor?.name || "WILLIAM",
     expedidor?.re ? `RE ${expedidor.re}${expedidor.digre ? `-${expedidor.digre}` : ""}` : "",
   ].filter(Boolean).join(" ");
-  const txtRightX = M + CONTENT_W;     // borda direita do box
-  const txtInnerMax = CONTENT_W - 8;   // margem interna de 4pt de cada lado
-  let infoSize = 9;
-  let infoTxtW = fontBold.widthOfTextAtSize(infoTxt, infoSize);
-  if (infoTxtW > txtInnerMax) {
-    infoSize = Math.max(5, 9 * (txtInnerMax / infoTxtW));
-    infoTxtW = fontBold.widthOfTextAtSize(infoTxt, infoSize);
-  }
+  const infoTxtW = fontBold.widthOfTextAtSize(infoTxt, 9);
   page1.drawText(infoTxt, {
-    x: txtRightX - infoTxtW,
-    y: A4_H - y - infoSize - 1, size: infoSize, font: fontBold,
+    x: M + CONTENT_W - infoTxtW,  // alinhado a direita na borda do box
+    y: A4_H - y - 10, size: 9, font: fontBold,
   });
   y += 18;
 
-  // "Baseado no Impresso..." (mesma logica: termina na borda, nunca atravessa)
+  // "Baseado no Impresso..." (mesma logica)
   const basedTxt = "Baseado no Impresso Grafico do CSM/M Int";
-  let basedSize = 8;
-  let basedW = fontReg.widthOfTextAtSize(basedTxt, basedSize);
-  if (basedW > txtInnerMax) {
-    basedSize = Math.max(5, 8 * (txtInnerMax / basedW));
-    basedW = fontReg.widthOfTextAtSize(basedTxt, basedSize);
-  }
+  const basedW = fontReg.widthOfTextAtSize(basedTxt, 8);
   page1.drawText(basedTxt, {
-    x: txtRightX - basedW, y: A4_H - y - 6, size: basedSize, font: fontReg, color: GRAY_TEXT,
+    x: M + CONTENT_W - basedW,  // alinhado a direita na borda do box
+    y: A4_H - y - 6, size: 8, font: fontReg, color: GRAY_TEXT,
   });
   y += 12;
-  // Data/hora (mesma logica, fonte base 7.5)
+  // Data/hora (mesma logica, fonte menor)
   const dateStr = formatDateTime(ag.concluidoEm || ag.aprovadoEm);
-  let dateSize = 7.5;
-  let dateW = fontReg.widthOfTextAtSize(dateStr, dateSize);
-  if (dateW > txtInnerMax) {
-    dateSize = Math.max(4.5, 7.5 * (txtInnerMax / dateW));
-    dateW = fontReg.widthOfTextAtSize(dateStr, dateSize);
-  }
+  const dateW = fontReg.widthOfTextAtSize(dateStr, 7.5);
   page1.drawText(dateStr, {
-    x: txtRightX - dateW, y: A4_H - y - 6, size: dateSize, font: fontReg, color: GRAY_TEXT,
+    x: M + CONTENT_W - dateW,  // alinhado a direita na borda do box
+    y: A4_H - y - 6, size: 7.5, font: fontReg, color: GRAY_TEXT,
   });
 
   // Rodape
@@ -602,22 +587,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     digre: ag.motoristaDigre || "",
     timestamp: encerramento?.dataHora || ag.concluidoEm || Date.now(),
   });
-  // FIX (William 2026-09-22 v80): alinhamento inteligente do nome do condutor.
-  // - Texto ABAIXO do box (NAO dentro do box).
-  // - TERMINA na borda vertical direita do box (X = M + CONTENT_W).
-  // - Se exceder a largura: REDUZ fonte proporcionalmente (nunca atravessa).
+  // FIX (William 2026-09-22 v80): alinhamento fixo a DIREITA.
+// - Texto SEMPRE termina na borda vertical direita do box (X = M + CONTENT_W).
+// - Se texto for grande, desloca-se pra esquerda (a partir da referencia).
+// - JAMAIS atravessa a borda direita do box (essa e a "margem de referencia").
+// - NAO muda fonte (mantem 10pt sempre).
   y2 += condAssLabelH + condAssBoxH + 3;
-  const condRightX = M + CONTENT_W;
-  const condInnerMax = CONTENT_W - 8;   // 4pt de cada lado
-  let condSize = 10;
-  let condTxtWidth = fontBold.widthOfTextAtSize(condutorTexto, condSize);
-  if (condTxtWidth > condInnerMax) {
-    condSize = Math.max(5, 10 * (condInnerMax / condTxtWidth));
-    condTxtWidth = fontBold.widthOfTextAtSize(condutorTexto, condSize);
-  }
+  const condTxtWidth = fontBold.widthOfTextAtSize(condutorTexto, 10);
   page2.drawText(condutorTexto, {
-    x: condRightX - condTxtWidth,
-    y: A4_H - y2 - condSize - 1, size: condSize, font: fontBold, color: BLACK,
+    x: M + CONTENT_W - condTxtWidth,  // alinhado a direita na borda do box
+    y: A4_H - y2 - 11, size: 10, font: fontBold, color: BLACK,
   });
   y2 += 16;
 
