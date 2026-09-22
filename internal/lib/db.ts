@@ -347,11 +347,20 @@ function getPgPool() {
     ssl: POSTGRES_URL.includes("sslmode=require")
       ? { rejectUnauthorized: false }
       : undefined,
-    max: 1, // serverless: 1 connection per function instance
-    idleTimeoutMillis: 10000,
-    connectionTimeoutMillis: 10000,
+    // FIX (William 2026-09-22): Prisma Postgres no Vercel Serverless
+    // hiberna apos inatividade (~5min sem acesso). Quando volta, a primeira
+    // request falha com "Failed to connect to upstream database". Aumentamos
+    // timeouts e ativamos keepAlive pra suavizar:
+    max: 3, // margem de paralelismo sem estourar limites do free tier
+    idleTimeoutMillis: 30000, // 30s
+    connectionTimeoutMillis: 30000, // 30s (Prisma free tier acorda devagar)
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
   });
-  console.log("[db] Postgres Pool inicializado");
+  pgPool.on("error", (err: any) => {
+    console.error("[db] Pool error (ignorado, sera recriado na prox request):", err?.message || err);
+  });
+  console.log("[db] Postgres Pool inicializado (max=3, timeout=30s, keepAlive=true)");
   return pgPool;
 }
 
@@ -363,11 +372,37 @@ export async function query<T = any>(
     const pool = getPgPool();
     // Aceita tanto `$1, $2` quanto `?` em qualquer modo - converte se necessario
     const finalSql = text.includes("?") ? questionToPostgres(text, params.length) : text;
-    const result = await pool.query(finalSql, params);
-    return {
-      rows: camelizeRows(result.rows) as T[],
-      rowCount: result.rowCount ?? result.rows.length,
+    // FIX (William 2026-09-22): Prisma Postgres hiberna apos inatividade.
+    // A 1a tentativa pode falhar; retry transparente 1x com 1.5s de espera.
+    const isConnError = (e: any) => {
+      const msg: string = e?.message || "";
+      return (
+        msg.includes("Connection terminated") ||
+        msg.includes("ECONNREFUSED") ||
+        msg.includes("ETIMEDOUT") ||
+        msg.includes("upstream database") ||
+        msg.includes("Connection ended") ||
+        msg.includes("Connection reset")
+      );
     };
+    try {
+      const result = await pool.query(finalSql, params);
+      return {
+        rows: camelizeRows(result.rows) as T[],
+        rowCount: result.rowCount ?? result.rows.length,
+      };
+    } catch (e: any) {
+      if (isConnError(e)) {
+        console.warn(`[db] Conexao caiu, retentando (1x) apos 1.5s: ${e?.message?.slice(0, 80)}`);
+        await new Promise(r => setTimeout(r, 1500));
+        const result = await pool.query(finalSql, params);
+        return {
+          rows: camelizeRows(result.rows) as T[],
+          rowCount: result.rowCount ?? result.rows.length,
+        };
+      }
+      throw e;
+    }
   }
 
   if (usePGlite) {

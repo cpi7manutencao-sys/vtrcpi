@@ -478,25 +478,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // assinatura (4pt de gap), na MESMA COLUNA do "Baseado..." (coluna
   // direita), MESMO X, MAS ACIMA dele com folga clara de 18pt.
   y += expHdrH + expBoxH + 4;
-  // Nome do gestor (IMEDIATAMENTE abaixo do box, mesma coluna do "Baseado...")
+  // FIX (William 2026-09-22): alinhamento inteligente do texto abaixo do box.
+  // O texto deve TERMINAR na borda vertical direita do box (X = M + CONTENT_W).
+  // Se a largura do texto for MENOR que 200pt -> alinha a direita normalmente.
+  // Se a largura for MAIOR -> centraliza dentro do box (sem atravessar a margem).
   const infoTxt = [
     expedidor?.postoGraduacao || "Cb PM",
     expedidor?.warName || expedidor?.name || "WILLIAM",
     expedidor?.re ? `RE ${expedidor.re}${expedidor.digre ? `-${expedidor.digre}` : ""}` : "",
   ].filter(Boolean).join(" ");
+  const infoTxtW = fontBold.widthOfTextAtSize(infoTxt, 9);
+  const expMaxW = 200;
+  const infoX = infoTxtW < expMaxW
+    ? M + CONTENT_W - infoTxtW  // alinha a direita
+    : M + Math.max(0, (CONTENT_W - infoTxtW) / 2);  // centraliza se exceder
   page1.drawText(infoTxt, {
-    x: A4_W - M - 200,
+    x: infoX,
     y: A4_H - y - 9, size: 9, font: fontBold,
   });
   y += 18;
 
-  // "Baseado no Impresso..." (mesmo X, mais abaixo com folga)
-  page1.drawText("Baseado no Impresso Grafico do CSM/M Int", {
-    x: A4_W - M - 200, y: A4_H - y - 6, size: 8, font: fontReg, color: GRAY_TEXT,
+  // "Baseado no Impresso..." (mesmo alinhamento inteligente)
+  const basedTxt = "Baseado no Impresso Grafico do CSM/M Int";
+  const basedW = fontReg.widthOfTextAtSize(basedTxt, 8);
+  const basedX = basedW < expMaxW
+    ? M + CONTENT_W - basedW
+    : M + Math.max(0, (CONTENT_W - basedW) / 2);
+  page1.drawText(basedTxt, {
+    x: basedX, y: A4_H - y - 6, size: 8, font: fontReg, color: GRAY_TEXT,
   });
   y += 12;
-  page1.drawText(formatDateTime(ag.concluidoEm || ag.aprovadoEm), {
-    x: A4_W - M - 200, y: A4_H - y - 6, size: 7.5, font: fontReg, color: GRAY_TEXT,
+  // Data/hora (mesmo alinhamento, fonte menor)
+  const dateStr = formatDateTime(ag.concluidoEm || ag.aprovadoEm);
+  const dateW = fontReg.widthOfTextAtSize(dateStr, 7.5);
+  const dateX = dateW < expMaxW
+    ? M + CONTENT_W - dateW
+    : M + Math.max(0, (CONTENT_W - dateW) / 2);
+  page1.drawText(dateStr, {
+    x: dateX, y: A4_H - y - 6, size: 7.5, font: fontReg, color: GRAY_TEXT,
   });
 
   // Rodape
@@ -575,14 +594,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     digre: ag.motoristaDigre || "",
     timestamp: encerramento?.dataHora || ag.concluidoEm || Date.now(),
   });
-  // FIX (William 2026-09-20 v71): nome do condutor fica LOGO abaixo do
-  // box de assinatura (3pt de gap), na coluna direita da pagina (mesmo
-  // padrao do EXPEDIDOR).
+  // FIX (William 2026-09-22): alinhamento inteligente do nome do condutor.
+  // Mesma logica do EXPEDIDOR: alinha a direita na borda vertical do box
+  // (X = M + CONTENT_W), e centraliza dentro do box se o texto exceder
+  // a largura maxima disponivel (sem atravessar a margem direita).
   y2 += condAssLabelH + condAssBoxH + 3;
-  // Nome do condutor (coluna direita, alinhado a esquerda)
+  const condMaxW = 200;
   const condTxtWidth = fontBold.widthOfTextAtSize(condutorTexto, 10);
+  const condX = condTxtWidth < condMaxW
+    ? M + CONTENT_W - condTxtWidth  // alinha a direita
+    : M + Math.max(0, (CONTENT_W - condTxtWidth) / 2);  // centraliza se exceder
   page2.drawText(condutorTexto, {
-    x: M + CONTENT_W - 200,
+    x: condX,
     y: A4_H - y2 - 10, size: 10, font: fontBold, color: BLACK,
   });
   y2 += 16;
