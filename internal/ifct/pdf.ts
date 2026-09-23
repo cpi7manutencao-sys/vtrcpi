@@ -167,6 +167,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ============================================================
   // Helpers locais (adaptados pra pdf-lib)
   // ============================================================
+
+  /**
+   * FIX (William 2026-09-23): sanitiza texto antes de virar PDF.
+   * pdf-lib usa fonte WinAnsi que NAO suporta:
+   *   - tab (\t, 0x09)
+   *   - control chars (\u0000-\u001F, exceto \n)
+   *   - line breaks (\r, \n) - tem que virar espaco
+   *   - alguns chars Unicode (substituir por equivalente ASCII)
+   * Se nao sanitizar, gera erro "WinAnsi cannot encode...".
+   */
+  function sanitize(text: any, fallback: string = "—"): string {
+    if (text == null) return fallback;
+    let s = String(text);
+    // 1) Substitui control chars e tabs/newlines por espaco
+    s = s.replace(/[\u0000-\u001F\u007F]/g, " ");
+    // 2) Substitui chars Unicode problematicos por equivalentes ASCII
+    const unicodeReplacements: Record<string, string> = {
+      "“": '"', "”": '"', "‘": "'", "’": "'",
+      "–": "-", "—": "-", "…": "...",
+      "°": "o", "º": "o", "ª": "a",
+      "á": "a", "à": "a", "â": "a", "ã": "a", "ä": "a", "å": "a",
+      "é": "e", "è": "e", "ê": "e", "ë": "e",
+      "í": "i", "ì": "i", "î": "i", "ï": "i",
+      "ó": "o", "ò": "o", "ô": "o", "õ": "o", "ö": "o", "ø": "o",
+      "ú": "u", "ù": "u", "û": "u", "ü": "u",
+      "ç": "c", "ñ": "n",
+      "Á": "A", "À": "A", "Â": "A", "Ã": "A", "Ä": "A",
+      "É": "E", "È": "E", "Ê": "E", "Ë": "E",
+      "Í": "I", "Ì": "I", "Î": "I", "Ï": "I",
+      "Ó": "O", "Ò": "O", "Ô": "O", "Õ": "O", "Ö": "O",
+      "Ú": "U", "Ù": "U", "Û": "U", "Ü": "U",
+      "Ç": "C", "Ñ": "N",
+    };
+    for (const [k, v] of Object.entries(unicodeReplacements)) {
+      s = s.replace(new RegExp(k, "g"), v);
+    }
+    // 3) Colapsa multiplos espacos em um
+    s = s.replace(/\s+/g, " ").trim();
+    return s || fallback;
+  }
   const A4_W = 595;
   const A4_H = 842;
   const M = 36; // margin
@@ -178,14 +218,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const tsRetorno = encerramento?.dataHora ?? ag.concluidoEm ?? ag.devolucaoData ?? null;
   const dataRetorno = tsRetorno ? formatDateTime(tsRetorno) : "—";
 
-  const condutorTexto = [
+  const condutorTexto = sanitize([
     ag.motoristaPosto || ag.postoGraduacao || "",
     ag.motoristaNome || ag.warName || ag.nomeGuerra || "",
     ag.motoristaRe ? `RE ${ag.motoristaRe}` : "",
   ]
     .filter(Boolean)
     .join(" ")
-    .trim() || "—";
+    .trim() || "—");
 
   const partidaKm = encerramento?.hodometroPartida ?? ag.odometroRetirada ?? null;
   const retornoKm = encerramento?.hodometroRetorno ?? ag.odometroDevolucao ?? null;
@@ -297,10 +337,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   page1.drawText("Secretaria da Seguranca Publica", {
     x: secX + 4, y: A4_H - M - 14, size: 9.5, font: fontReg, color: BLACK,
   });
-  page1.drawText(subfrotaText, {
+  page1.drawText(sanitize(subfrotaText), {
     x: secX + 4, y: A4_H - M - linhaH - 12, size: 11, font: fontBold, color: BLACK,
   });
-  page1.drawText(unidadeOrigem?.cidade || unidadeOrigem?.municipio || "Sorocaba", {
+  page1.drawText(sanitize(unidadeOrigem?.cidade || unidadeOrigem?.municipio || "Sorocaba"), {
     x: secX + 4, y: A4_H - M - linhaH * 2 - 12, size: 10, font: fontReg, color: BLACK,
   });
   // Separadores horizontais (entre as linhas)
@@ -378,11 +418,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   y += 14 + 18 + 4;
 
   // (F) DESTINO E FINALIDADE
-  drawLabelAndField(page1, fontReg, fontReg, M, A4_H, y, CONTENT_W, "Destino e Finalidade da Missao", 14, 28, ag.destino || "—");
+  drawLabelAndField(page1, fontReg, fontReg, M, A4_H, y, CONTENT_W, "Destino e Finalidade da Missao", 14, 28, sanitize(ag.destino));
   y += 14 + 28 + 4;
 
   // (G) FINALIDADE (RESUMO)
-  drawLabelAndField(page1, fontReg, fontReg, M, A4_H, y, CONTENT_W, "Finalidade (resumo)", 14, 24, ag.finalidade || "—");
+  drawLabelAndField(page1, fontReg, fontReg, M, A4_H, y, CONTENT_W, "Finalidade (resumo)", 14, 24, sanitize(ag.finalidade));
   y += 14 + 24 + 4;
 
   // (H) APRESENTAR-SE EM
@@ -468,10 +508,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   drawCellText(page1, fontBold, "EXPEDIDOR (gestor da subfrota que aprova o agendamento)", M, A4_H - y - expHdrH + 5, CONTENT_W, 8.5, { align: "center" });
   page1.drawRectangle({ x: M, y: A4_H - y - expHdrH - expBoxH, width: CONTENT_W, height: expBoxH, borderColor: BLACK, borderWidth: 0.5 });
   drawDigitalSignature(page1, brasaoImage, fontReg, fontBold, fontMono, M + 1, A4_H - y - expHdrH - expBoxH + 1, CONTENT_W - 2, expBoxH - 2, {
-    posto: expedidor?.postoGraduacao || "Cb PM",
-    nome: expedidor?.warName || expedidor?.name || "WILLIAM",
-    re: expedidor?.re || "",
-    digre: expedidor?.digre || "",
+    posto: sanitize(expedidor?.postoGraduacao || "Cb PM"),
+    nome: sanitize(expedidor?.warName || expedidor?.name || "WILLIAM"),
+    re: sanitize(expedidor?.re || "", ""),
+    digre: sanitize(expedidor?.digre || "", ""),
     timestamp: ag.concluidoEm || ag.aprovadoEm || Date.now(),
   });
   // FIX (William 2026-09-20 v71): infoTxt fica LOGO abaixo do box de
@@ -483,11 +523,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // - Se for grande, desloca-se pra esquerda.
   // - JAMAIS atravessa a borda direita do box.
   // - NAO muda fonte.
-  const infoTxt = [
+  const infoTxt = sanitize([
     expedidor?.postoGraduacao || "Cb PM",
     expedidor?.warName || expedidor?.name || "WILLIAM",
     expedidor?.re ? `RE ${expedidor.re}${expedidor.digre ? `-${expedidor.digre}` : ""}` : "",
-  ].filter(Boolean).join(" ");
+  ].filter(Boolean).join(" "));
   const infoTxtW = fontBold.widthOfTextAtSize(infoTxt, 9);
   page1.drawText(infoTxt, {
     x: M + CONTENT_W - infoTxtW,  // alinhado a direita na borda do box
@@ -526,18 +566,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   y2 += 24;
 
   // (B) Defeitos verificados
-  const defeitosTexto = (encerramento?.defeitosVerificados
-    && encerramento.defeitosVerificados.trim() !== ""
-    && encerramento.defeitosVerificados.trim() !== "—")
-    ? encerramento.defeitosVerificados
-    : "A manutencao de 1o escalao foi realizada sem novidades";
+  const defeitosTexto = sanitize(encerramento?.defeitosVerificados || "A manutencao de 1o escalao foi realizada sem novidades");
   drawLabelAndField(page2, fontReg, fontReg, M, A4_H, y2, CONTENT_W,
     "O condutor anotara os defeitos verificados:", 12, 34, defeitosTexto);
   y2 += 12 + 34 + 4;
 
   // (C) Observacoes sobre multas/irregularidades/acidentes
   drawLabelAndField(page2, fontReg, fontReg, M, A4_H, y2, CONTENT_W,
-    "O condutor fara observacoes sobre multas, irregularidades e acidentes:", 12, 34, encerramento?.observacoes || "—");
+    "O condutor fara observacoes sobre multas, irregularidades e acidentes:", 12, 34, sanitize(encerramento?.observacoes));
   y2 += 12 + 34 + 4;
 
   // (D) Nova apresentacao
@@ -558,11 +594,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (temNova) {
     const fldH = 14;
     page2.drawRectangle({ x: M, y: A4_H - y2 - fldH, width: CONTENT_W, height: fldH, color: GRAY_LIGHT, borderColor: BLACK, borderWidth: 0.5 });
-    const aprTxt = [
+    const aprTxt = sanitize([
       formatDate(encerramento.novaApresentacaoData),
       encerramento.novaApresentacaoHora ? `as ${encerramento.novaApresentacaoHora}` : "",
       encerramento.novaApresentacaoLocal ? `- ${encerramento.novaApresentacaoLocal}` : "",
-    ].filter(Boolean).join(" ");
+    ].filter(Boolean).join(" "));
     page2.drawText(aprTxt, { x: M + 4, y: A4_H - y2 - fldH + 4, size: 9, font: fontReg });
     y2 += fldH + 4;
   } else {
@@ -571,7 +607,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // (E) Consideracoes gerais
   drawLabelAndField(page2, fontReg, fontReg, M, A4_H, y2, CONTENT_W,
-    "Consideracoes gerais sobre o veiculo / condutor: e/ou", 12, 30, encerramento?.consideracoesVeiculo || "—");
+    "Consideracoes gerais sobre o veiculo / condutor: e/ou", 12, 30, sanitize(encerramento?.consideracoesVeiculo));
   y2 += 12 + 30 + 4;
 
   // (F) Assinatura do CONDUTOR
@@ -581,10 +617,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   drawCellText(page2, fontBold, "CONDUTOR", M, A4_H - y2 - condAssLabelH + 4, CONTENT_W, 8.5, { align: "center" });
   page2.drawRectangle({ x: M, y: A4_H - y2 - condAssLabelH - condAssBoxH, width: CONTENT_W, height: condAssBoxH, borderColor: BLACK, borderWidth: 0.5 });
   drawDigitalSignature(page2, brasaoImage, fontReg, fontBold, fontMono, M + 1, A4_H - y2 - condAssLabelH - condAssBoxH + 1, CONTENT_W - 2, condAssBoxH - 2, {
-    posto: ag.motoristaPosto || ag.postoGraduacao || "",
-    nome: ag.motoristaNome || ag.warName || ag.nomeGuerra || "",
-    re: ag.motoristaRe || "",
-    digre: ag.motoristaDigre || "",
+    posto: sanitize(ag.motoristaPosto || ag.postoGraduacao || "", ""),
+    nome: sanitize(ag.motoristaNome || ag.warName || ag.nomeGuerra || "", ""),
+    re: sanitize(ag.motoristaRe || "", ""),
+    digre: sanitize(ag.motoristaDigre || "", ""),
     timestamp: encerramento?.dataHora || ag.concluidoEm || Date.now(),
   });
   // FIX (William 2026-09-22 v80): alinhamento fixo a DIREITA.
@@ -618,7 +654,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     page2.drawText("Rondado por", { x: M, y: A4_H - y2 - 8, size: 9, font: fontReg });
     y2 += 12;
     page2.drawRectangle({ x: M, y: A4_H - y2 - 14, width: CONTENT_W, height: 14, color: GRAY_LIGHT, borderColor: BLACK, borderWidth: 0.5 });
-    page2.drawText(r?.rondadoPor || "—", { x: M + 4, y: A4_H - y2 - 14 + 4, size: 10, font: fontReg });
+    page2.drawText(sanitize(r?.rondadoPor), { x: M + 4, y: A4_H - y2 - 14 + 4, size: 10, font: fontReg });
     y2 += 18;
 
     page2.drawText("Texto Livre (descrever o que foi verificado / irregularidade encontrada):", {
@@ -627,7 +663,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     y2 += 12;
     const tlH = 32;
     page2.drawRectangle({ x: M, y: A4_H - y2 - tlH, width: CONTENT_W, height: tlH, borderColor: BLACK, borderWidth: 0.5 });
-    page2.drawText(r?.textoLivre || "—", { x: M + 4, y: A4_H - y2 - tlH + 4, size: 9, font: fontReg });
+    page2.drawText(sanitize(r?.textoLivre), { x: M + 4, y: A4_H - y2 - tlH + 4, size: 9, font: fontReg });
     y2 += tlH + 4;
 
     const col4W = (CONTENT_W - 12) / 4;
@@ -642,10 +678,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     page2.drawRectangle({ x: M + col4W * 2 + 8, y: A4_H - y2 - col4H, width: col4W, height: col4H, borderColor: BLACK, borderWidth: 0.5 });
     page2.drawRectangle({ x: M + col4W * 3 + 12, y: A4_H - y2 - col4H, width: col4W, height: col4H, borderColor: BLACK, borderWidth: 0.5 });
     const reTxt = r?.re ? `RE ${r.re}${r.digre ? `-${r.digre}` : ""}` : "—";
-    page2.drawText(r?.posto || "—", { x: M + 2, y: A4_H - y2 - col4H + 5, size: 9, font: fontReg });
-    page2.drawText(r?.nomeGuerra || "—", { x: M + col4W + 6, y: A4_H - y2 - col4H + 5, size: 9, font: fontReg });
-    page2.drawText(reTxt, { x: M + col4W * 2 + 10, y: A4_H - y2 - col4H + 5, size: 9, font: fontReg });
-    page2.drawText(r?.unidadePertence || "—", { x: M + col4W * 3 + 14, y: A4_H - y2 - col4H + 5, size: 9, font: fontReg });
+    page2.drawText(sanitize(r?.posto), { x: M + 2, y: A4_H - y2 - col4H + 5, size: 9, font: fontReg });
+    page2.drawText(sanitize(r?.nomeGuerra), { x: M + col4W + 6, y: A4_H - y2 - col4H + 5, size: 9, font: fontReg });
+    page2.drawText(sanitize(reTxt), { x: M + col4W * 2 + 10, y: A4_H - y2 - col4H + 5, size: 9, font: fontReg });
+    page2.drawText(sanitize(r?.unidadePertence), { x: M + col4W * 3 + 14, y: A4_H - y2 - col4H + 5, size: 9, font: fontReg });
     y2 += col4H + 6;
 
     // Assinatura do Rondante
@@ -742,10 +778,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const dadosH = 30;
       page3.drawRectangle({ x: M, y: A4_H - y3 - dadosH, width: CONTENT_W, height: dadosH, borderColor: BLACK, borderWidth: 0.5 });
       const dataAb = a.dataHora ? formatDateTime(a.dataHora) : "—";
-      const linhaDados = `Natureza: ${a.natureza}    -    Quantidade: ${a.quantidadeLitros} L    -    KM: ${formatNumber(a.odometro)}    -    Data: ${dataAb}`;
+      const linhaDados = sanitize(`Natureza: ${a.natureza}    -    Quantidade: ${a.quantidadeLitros} L    -    KM: ${formatNumber(a.odometro)}    -    Data: ${dataAb}`);
       page3.drawText(linhaDados, { x: M + 6, y: A4_H - y3 - dadosH + 8, size: 9, font: fontReg });
       if (a.posto) {
-        page3.drawText(`Posto: ${a.posto}`, { x: M + 6, y: A4_H - y3 - dadosH + 22, size: 8, font: fontItalic, color: GRAY_TEXT });
+        page3.drawText(`Posto: ${sanitize(a.posto)}`, { x: M + 6, y: A4_H - y3 - dadosH + 22, size: 8, font: fontItalic, color: GRAY_TEXT });
       }
       y3 += dadosH;
 
