@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
-import { getUser, isAdmin } from '../lib/auth'
+import { getUser, isAdmin, isGestor } from '../lib/auth'
 import { listViaturasByDescarga, removeViatura, reativarViatura, listUnits } from '../lib/api'
 
 export default function ProcessoDescargaPage() {
@@ -174,7 +174,9 @@ export default function ProcessoDescargaPage() {
   }
 
   async function excluir(v: any) {
-    if (!user || !isAdmin()) return
+    if (!user) return
+    // FIX (William 2026-09-23): gestor tb pode (mesma logica do atribuir/toggle)
+    if (!isAdmin() && !isGestor()) return
     setOpResultado({ tipo: null, ok: false, msg: '' })
     try {
       await removeViatura(user.cpf, v._id)
@@ -434,7 +436,7 @@ export default function ProcessoDescargaPage() {
                       >
                         ↻ Reativar
                       </button>
-                      {isAdmin() && (
+                      {(isAdmin() || isGestor()) && (
                         <button
                           className="btn btn-sm"
                           style={{ background: '#c62828', color: 'white' }}

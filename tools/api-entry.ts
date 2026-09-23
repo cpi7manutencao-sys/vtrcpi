@@ -70,6 +70,7 @@ import * as rondasSalvar from "../internal/rondas/salvar";
 import * as rondasSalvarPorIfct from "../internal/rondas/salvar-por-ifct";
 
 import * as vtrColocarDescarga from "../internal/viaturas/colocar-em-descarga";
+import * as vtrExcluir from "../internal/viaturas/excluir";
 import * as vtrGet from "../internal/viaturas/get";
 import * as vtrList from "../internal/viaturas/list";
 import * as vtrListByDescarga from "../internal/viaturas/list-by-descarga";
@@ -149,6 +150,7 @@ const routes: Record<string, HandlerModule> = {
   "/api/rondas/salvar-por-ifct": rondasSalvarPorIfct as HandlerModule,
 
   "/api/viaturas/colocar-em-descarga": vtrColocarDescarga as HandlerModule,
+  "/api/viaturas/excluir": vtrExcluir as HandlerModule,
   "/api/viaturas/get": vtrGet as HandlerModule,
   "/api/viaturas/list": vtrList as HandlerModule,
   "/api/viaturas/list-by-descarga": vtrListByDescarga as HandlerModule,

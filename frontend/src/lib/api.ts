@@ -318,7 +318,14 @@ export const upsertViatura = async (args: any) => {
     body: JSON.stringify(args),
   });
 };
-export const removeViatura = async (_cpf: string, _id: string) => ({ ok: true });
+// FIX (William 2026-09-23): stub antigo fingia funcionar mas nao chamava backend.
+// Agora deleta de verdade (hard delete via /api/viaturas/excluir).
+export const removeViatura = async (cpf: string, id: string) => {
+  return apiFetch(`/api/viaturas/excluir`, {
+    method: "POST",
+    body: JSON.stringify({ id, cpf }),
+  });
+};
 export const colocarViaturaEmDescarga = async (cpf: string, id: string, motivo?: string) => {
   return apiFetch(`/api/viaturas/colocar-em-descarga`, {
     method: "POST",
