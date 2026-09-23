@@ -55,12 +55,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 1) Historico da viatura
     await sql`DELETE FROM viaturaHistorico WHERE viaturaId = ${id}`;
     // 2) Rondas (se houver)
-    await sql`DELETE FROM rondas WHERE viaturaAtribuida = ${id}`;
+    await sql`DELETE FROM rondas WHERE viaturaatribuida = ${id}`;
     // 3) IFCTs relacionados (abastecimento + encerramento)
-    await sql`DELETE FROM ifctAbastecimentos WHERE agendamentoId IN (SELECT id FROM agendamentos WHERE viaturaAtribuida = ${id})`;
-    await sql`DELETE FROM ifctEncerramentos WHERE agendamentoId IN (SELECT id FROM agendamentos WHERE viaturaAtribuida = ${id})`;
+    await sql`DELETE FROM ifctAbastecimentos WHERE agendamentoId IN (SELECT id FROM agendamentos WHERE viaturaatribuida = ${id})`;
+    await sql`DELETE FROM ifctEncerramentos WHERE agendamentoId IN (SELECT id FROM agendamentos WHERE viaturaatribuida = ${id})`;
     // 4) Desvincula a viatura dos agendamentos (NAO deleta agendamentos pra preservar historico)
-    await sql`UPDATE agendamentos SET viaturaAtribuida = NULL WHERE viaturaAtribuida = ${id}`;
+    await sql`UPDATE agendamentos SET viaturaatribuida = NULL WHERE viaturaatribuida = ${id}`;
     // 5) Finalmente, exclui a viatura
     await sql`DELETE FROM viaturas WHERE id = ${id}`;
   } catch (e: any) {
