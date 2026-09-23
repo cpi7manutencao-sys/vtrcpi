@@ -754,14 +754,22 @@ export default function ViaturasPage() {
                       <td>{v.placa || '-'}</td>
                       <td style={{ fontSize: '12px' }}>{unit ? `${unit.code} - ${unit.sigla || unit.name}` : '-'}</td>
                       <td style={{ fontSize: '12px' }}>
-                        {/* FIX (William 2026-08-31): quando a viatura esta
-                            operando e o motivo no banco eh "OPERACAO"
-                            (legado do LCM), mostra "OPERANDO" pra ficar
-                            claro o status atual. Caso contrario, mostra
-                            o motivo gravado. */}
-                        {v.ativo && (v.motivo === 'OPERAÇÃO' || v.motivo === 'OPERACAO' || v.motivo === 'Operação')
-                          ? 'OPERANDO'
-                          : (v.motivo || '-')}
+                        {/* FIX (William 2026-09-23): coluna Motivo com truncate em 19 chars + tooltip nativo.
+                            Logica: se texto > 19 chars, mostra "texto.slice(0,19)..." com title=textoCompleto
+                            pra revelar ao passar o mouse. Caso contrario, mostra texto normal. */}
+                        {(() => {
+                          const motivoDisplay = v.ativo && (v.motivo === 'OPERAÇÃO' || v.motivo === 'OPERACAO' || v.motivo === 'Operação')
+                            ? 'OPERANDO'
+                            : (v.motivo || '-');
+                          if (motivoDisplay.length > 19) {
+                            return (
+                              <span title={motivoDisplay} style={{ cursor: 'help', borderBottom: '1px dotted #999' }}>
+                                {motivoDisplay.slice(0, 19) + '...'}
+                              </span>
+                            );
+                          }
+                          return motivoDisplay;
+                        })()}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center', whiteSpace: 'nowrap' }}>
