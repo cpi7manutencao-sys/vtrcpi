@@ -54,8 +54,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // 1) Historico da viatura
     await sql`DELETE FROM viaturaHistorico WHERE viaturaId = ${id}`;
-    // 2) Rondas (se houver)
-    await sql`DELETE FROM rondas WHERE viaturaatribuida = ${id}`;
+    // 2) Rondas (se houver) - coluna eh viaturaid na tabela rondas
+    await sql`DELETE FROM rondas WHERE viaturaid = ${id}`;
     // 3) IFCTs relacionados (abastecimento + encerramento)
     await sql`DELETE FROM ifctAbastecimentos WHERE agendamentoId IN (SELECT id FROM agendamentos WHERE viaturaatribuida = ${id})`;
     await sql`DELETE FROM ifctEncerramentos WHERE agendamentoId IN (SELECT id FROM agendamentos WHERE viaturaatribuida = ${id})`;
