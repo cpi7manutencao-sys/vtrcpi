@@ -8,7 +8,7 @@ export default function DesempenhoPage() {
   const [units, setUnits] = useState<any[]>([])
   const [filtroOpm, setFiltroOpm] = useState<string>('')
   const [filtroSubordinada, setFiltroSubordinada] = useState<string>('')
-  const [dados, setDados] = useState<{ pontos: any[]; totalGeral: number } | null>(null)
+  const [dados, setDados] = useState<{ pontos: any[]; totalGeral: number; cards?: { frotaTotal: number; operando: number; baixada: number; emDescarga: number; pctOperando: number } } | null>(null)
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
 
@@ -166,7 +166,7 @@ export default function DesempenhoPage() {
       {loading && <p>Carregando...</p>}
 
       {dados && dados.pontos.length > 0 && (
-        <GraficoEvolucao pontos={dados.pontos} />
+        <GraficoEvolucao pontos={dados.pontos} cards={dados.cards} />
       )}
 
       {dados && dados.pontos.length === 0 && !loading && (
@@ -180,7 +180,7 @@ export default function DesempenhoPage() {
  * Grafico SVG inline com 2 linhas (operando + baixada)
  * Performance: SVG puro, sem dependencia externa
  */
-function GraficoEvolucao({ pontos }: { pontos: any[] }) {
+function GraficoEvolucao({ pontos, cards }: { pontos: any[]; cards?: { frotaTotal: number; operando: number; baixada: number; emDescarga: number; pctOperando: number } }) {
   // Dimensoes
   const W = 900
   const H = 380
@@ -219,11 +219,12 @@ function GraficoEvolucao({ pontos }: { pontos: any[] }) {
   // Tooltip state
   const [hover, setHover] = useState<number | null>(null)
 
-  // Stats
-  const totalFinal = pontos[pontos.length - 1]?.total || 0
-  const operandoFinal = pontos[pontos.length - 1]?.operando || 0
-  const baixadaFinal = pontos[pontos.length - 1]?.baixada || 0
-  const pctFinal = pontos[pontos.length - 1]?.pctOperando || 0
+  // Stats (FIX 2026-09-23): cards vem do backend (campo ativo, IGUAL getTotais).
+  // Fallback pra ultimo ponto da serie (caso backend antigo).
+  const totalFinal = cards?.frotaTotal ?? pontos[pontos.length - 1]?.total ?? 0
+  const operandoFinal = cards?.operando ?? pontos[pontos.length - 1]?.operando ?? 0
+  const baixadaFinal = cards?.baixada ?? pontos[pontos.length - 1]?.baixada ?? 0
+  const pctFinal = cards?.pctOperando ?? pontos[pontos.length - 1]?.pctOperando ?? 0
   const picoBaixada = Math.max(...pontos.map(p => p.baixada))
   const picoOperando = Math.max(...pontos.map(p => p.operando))
 

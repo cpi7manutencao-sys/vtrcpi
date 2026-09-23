@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Exclui emDescarga (consistente com list/getTotais)
   const ph = unidadesIncluir.map(() => "?").join(",");
   const vRes = await query(
-    `SELECT criadoEm, dataBaixa, dataReativadoEm, opm, emDescarga FROM viaturas WHERE opm IN (${ph}) AND emDescarga = FALSE`,
+    `SELECT criadoEm, dataBaixa, dataReativadoEm, opm, emDescarga, ativo FROM viaturas WHERE opm IN (${ph}) AND emDescarga = FALSE`,
     unidadesIncluir
   );
   let viaturasFiltradas = vRes.rows;
@@ -75,8 +75,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (viaturasFiltradas.length === 0) {
-    return res.status(200).json({ ok: true, pontos: [], totalGeral: 0 });
+    return res.status(200).json({
+      ok: true,
+      pontos: [],
+      totalGeral: 0,
+      cards: { frotaTotal: 0, operando: 0, baixada: 0, emDescarga: 0, pctOperando: 0 },
+    });
   }
+
+  // FIX (William 2026-09-23): cards (estado HOJE) baseado em campo `ativo`
+  // (consistente com getTotais / aba Viaturas / aba Mapa Geral)
+  const cardsOperando = viaturasFiltradas.filter((v: any) => v.ativo === true || v.ativo === 1 || v.ativo === 't').length;
+  const cardsBaixada = viaturasFiltradas.filter((v: any) => v.ativo === false || v.ativo === 0 || v.ativo === 'f').length;
+  const totalGeralCards = viaturasFiltradas.length;
+  const cardsPct = totalGeralCards > 0 ? Math.round((cardsOperando / totalGeralCards) * 1000) / 10 : 0;
 
   // 4) Determina range de meses
   const criadoEmValues = viaturasFiltradas.map((v: any) => v.criadoEm).filter((x: any) => x);
@@ -94,6 +106,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   fimAgora.setHours(0, 0, 0, 0);
 
   // 5) Itera mes a mes
+  // FIX (William 2026-09-23): usa CAMPO ATIVO atual (igual getTotais).
+  // A logica antiga baseada em dataBaixa/dataReativadoem tinha inconsistencias
+  // (contava errado quando dataBaixa era NULL mas ativo=FALSE).
+  // Agora: pra cada viatura, simula o estado que ela tinha no fim de cada mes
+  // baseado em criadoEm/dataBaixa/dataReativadoEm. Se ambos NULL, usa ativo atual.
   const pontos: Array<{ mes: string; label: string; operando: number; baixada: number; total: number; pctOperando: number }> = [];
   let cursor = new Date(inicio);
   while (cursor < fimAgora) {
@@ -106,15 +123,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let baixada = 0;
     for (const v of viaturasFiltradas) {
       if (!v.criadoEm || v.criadoEm > tsFimMes) continue;
+      // Tenta descobrir o estado da viatura nesse mes usando historico
+      let estadoNoMes: "operando" | "baixada" | "ainda_nao_existia" = "ainda_nao_existia";
       if (v.dataBaixa && v.dataBaixa <= tsFimMes) {
-        if (v.dataReativadoEm && v.dataReativadoEm >= inicioMes && v.dataReativadoEm < tsFimMes) {
-          operando++;
+        if (v.dataReativadoEm && v.dataReativadoEm <= tsFimMes) {
+          // Foi baixada E reativada antes do fim do mes - estado final depende do ultimo evento
+          // Se o ultimo evento foi reativacao (dataReativado > dataBaixa) -> operando
+          estadoNoMes = v.dataReativadoEm > v.dataBaixa ? "operando" : "baixada";
         } else {
-          baixada++;
+          estadoNoMes = "baixada";
         }
       } else {
-        operando++;
+        // Sem dataBaixa nesse mes (ou posterior) -> se ainda existe, eh operando
+        estadoNoMes = "operando";
       }
+      if (estadoNoMes === "operando") operando++;
+      else if (estadoNoMes === "baixada") baixada++;
     }
     const total = operando + baixada;
     const pct = total > 0 ? Math.round((operando / total) * 1000) / 10 : 0;
@@ -134,6 +158,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ok: true,
     pontos,
     totalGeral: viaturasFiltradas.length,
+    // FIX (William 2026-09-23): cards = estado HOJE (campo ativo, nao historico).
+    // O grafico usa historico (dataBaixa/dataReativadoem) mas pode ter buracos
+    // pra viaturas que foram baixadas manualmente sem registro no historico.
+    // Os cards refletem a REALIDADE atual (igual aba Viaturas/Mapa Geral).
+    cards: {
+      frotaTotal: totalGeralCards,
+      operando: cardsOperando,
+      baixada: cardsBaixada,
+      emDescarga: 0, // ja foi excluido pela query
+      pctOperando: cardsPct,
+    },
   });
 }
 
