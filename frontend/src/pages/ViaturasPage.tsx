@@ -719,7 +719,6 @@ export default function ViaturasPage() {
                   <th>Categoria</th>
                   <th>Modelo</th>
                   <th>Placa</th>
-                  <th>Patrimônio</th>
                   <th>Unidade</th>
                   <th>Motivo</th>
                   <th>Ações</th>
@@ -753,7 +752,6 @@ export default function ViaturasPage() {
                       <td>{v.categoria}</td>
                       <td>{v.marcaModelo}</td>
                       <td>{v.placa || '-'}</td>
-                      <td>{v.patrimonio || '-'}</td>
                       <td style={{ fontSize: '12px' }}>{unit ? `${unit.code} - ${unit.sigla || unit.name}` : '-'}</td>
                       <td style={{ fontSize: '12px' }}>
                         {/* FIX (William 2026-08-31): quando a viatura esta
@@ -766,7 +764,7 @@ export default function ViaturasPage() {
                           : (v.motivo || '-')}
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', whiteSpace: 'nowrap' }}>
                           {(isEditor() || isAdmin()) && (
                             <button
                               className="btn btn-secondary btn-sm"
