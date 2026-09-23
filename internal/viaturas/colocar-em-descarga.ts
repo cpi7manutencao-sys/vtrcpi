@@ -29,7 +29,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const session = auth.session;
   const user = await getUserById(session.userId);
   if (!user) return res.status(404).json({ ok: false, error: "Usuario nao encontrado" });
-  if (user.viaturasRole !== "editor" && user.viaturasRole !== "admin" && !user.isMaster) {
+  // FIX (William 2026-09-23): gestor tambem pode enviar viatura pra descarga
+  // (mesma logica do atribuir.ts - gestor cobre a operacao da sua unidade)
+  if (user.viaturasRole !== "editor" && user.viaturasRole !== "gestor"
+      && user.viaturasRole !== "admin" && !user.isMaster) {
     return res.status(403).json({ ok: false, error: "Sem permissao para enviar viatura pra descarga" });
   }
 

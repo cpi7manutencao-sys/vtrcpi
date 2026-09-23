@@ -21,9 +21,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(auth.status).json({ ok: false, error: auth.error });
   }
 
-  const { id, novoAtivo, motivo, situacao, observacao } = req.body || {};
+  // FIX (William 2026-09-23): aceita tanto {id, novoAtivo} quanto {viaturaId, ativo}
+  // (frontend em ViaturasPage.tsx manda viaturaId/ativo, outros callers usam id/novoAtivo)
+  const body = req.body || {};
+  const id = body.id ?? body.viaturaId;
+  const novoAtivo = typeof body.novoAtivo === "boolean"
+    ? body.novoAtivo
+    : typeof body.ativo === "boolean"
+      ? body.ativo
+      : undefined;
+  const { motivo, situacao, observacao } = body;
   if (!id || typeof novoAtivo !== "boolean") {
-    return res.status(400).json({ ok: false, error: "id e novoAtivo (boolean) sao obrigatorios" });
+    return res.status(400).json({ ok: false, error: "id/viaturaId e novoAtivo/ativo (boolean) sao obrigatorios" });
   }
 
   const session = auth.session;
