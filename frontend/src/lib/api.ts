@@ -36,11 +36,36 @@ export const listUnitsHierarchical = async () => {
   return listUnits();
 };
 
-// TODO Sprint 2: implementar endpoints
-export const createUnit = async (_args: any) => ({ ok: true, id: 0 });
-export const updateUnit = async (_args: any) => ({ ok: true });
-export const deactivateUnit = async (_cpf: string, _id: string) => ({ ok: true });
-export const reactivateUnit = async (_cpf: string, _id: string) => ({ ok: true });
+// FIX (William 2026-09-23): stubs antigos fingiam funcionar mas nao
+// chamavam o backend - OPM editava/salava "com sucesso" mas nada mudava.
+// Agora chama os endpoints reais.
+export const createUnit = async (args: any) => {
+  return apiFetch(`/api/units/upsert`, {
+    method: "POST",
+    body: JSON.stringify(args),
+  });
+};
+
+export const updateUnit = async (args: any) => {
+  return apiFetch(`/api/units/update`, {
+    method: "POST",
+    body: JSON.stringify(args),
+  });
+};
+
+export const deactivateUnit = async (_cpf: string, id: string) => {
+  return apiFetch(`/api/units/update`, {
+    method: "POST",
+    body: JSON.stringify({ id, active: false }),
+  });
+};
+
+export const reactivateUnit = async (_cpf: string, id: string) => {
+  return apiFetch(`/api/units/update`, {
+    method: "POST",
+    body: JSON.stringify({ id, active: true }),
+  });
+};
 
 // ============================================================
 // USERS

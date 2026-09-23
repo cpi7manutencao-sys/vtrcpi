@@ -19,7 +19,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body = req.body || {};
-  if (!body.id) {
+  const id = parseInt(String(body.id || 0), 10);
+  if (!id) {
     return res.status(400).json({ ok: false, error: "id obrigatorio" });
   }
 
@@ -48,27 +49,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Auto-referencia check
-  if (body.parentUnit && body.parentUnit.toString() === body.id.toString()) {
+  if (body.parentUnit && parseInt(String(body.parentUnit), 10) === id) {
     return res.status(400).json({ ok: false, error: "A unidade nao pode ser pai de si mesma." });
   }
 
   const patch: any = {};
   if (body.name !== undefined) patch.name = body.name.trim();
   if (body.sigla !== undefined) patch.sigla = body.sigla?.trim() || null;
-  if (body.parentUnit !== undefined) patch.parentUnit = body.parentUnit;
-  if (body.commandUnit !== undefined) patch.commandUnit = body.commandUnit;
+  if (body.parentUnit !== undefined) patch.parentUnit = body.parentUnit ? parseInt(String(body.parentUnit), 10) : null;
+  if (body.commandUnit !== undefined) patch.commandUnit = body.commandUnit ? parseInt(String(body.commandUnit), 10) : null;
   if (body.active !== undefined) patch.active = body.active ? 1 : 0;
 
   if (Object.keys(patch).length === 0) {
-    return res.status(200).json({ ok: true, id: body.id, unchanged: true });
+    return res.status(200).json({ ok: true, id, unchanged: true });
   }
 
-  // ConstrÃ³i UPDATE dinamico
+  // Constrói UPDATE dinamico
   const sets = Object.keys(patch).map(k => `${k} = ?`).join(", ");
   const vals = Object.values(patch);
-  await query(`UPDATE units SET ${sets} WHERE id = ?`, [...vals, body.id]);
+  await query(`UPDATE units SET ${sets} WHERE id = ?`, [...vals, id]);
 
-  return res.status(200).json({ ok: true, id: body.id, patched: Object.keys(patch) });
+  return res.status(200).json({ ok: true, id, patched: Object.keys(patch) });
 }
 
 function parseArr(val: any): number[] {
