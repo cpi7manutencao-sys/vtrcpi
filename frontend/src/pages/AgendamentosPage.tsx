@@ -359,16 +359,19 @@ export default function AgendamentosPage() {
       {loading ? <p>Carregando...</p> : (
         <div className="card">
           {/* FIX (William 2026-09-23): filtro de data da retirada (client-side)
-              blindado contra retiradaData invalido (null/undefined/NaN) */}
+              blindado contra retiradaData invalido E usando dataMissao como
+              referencia real (retiradaData vem quebrado do backend). */}
           {(() => {
             const filtrados = agendamentos.filter((a: any) => {
               if (!filtroDataInicio && !filtroDataFim) return true
-              // FIX (William 2026-09-23): protege contra new Date(invalid).toISOString()
-              // que joga RangeError. Se retiradaData for vazio, assume dataMissao.
-              const dataRef = a.retiradaData ?? a.dataMissao;
-              if (!dataRef) return true;  // sem data: deixa passar (filtro nao bloqueia)
+              // FIX: usa dataMissao como referencia (retiradaData vem com bug do backend)
+              const dataRef = a.dataMissao;
+              if (!dataRef) return true;
               const r = new Date(dataRef);
-              if (isNaN(r.getTime())) return true;  // data invalida: deixa passar
+              if (isNaN(r.getTime())) return true;  // data invalida: nao bloqueia
+              // FIX: timezone BRT explicito (Vercel roda em UTC mas usuarios sao BRT)
+              // dataMissao ja vem como YYYY-MM-DD (YYYY-MM-DDTHH:MM:SS.sssZ),
+              // entao slice(0,10) ja da a data correta sem mudanca de timezone
               const rStr = r.toISOString().slice(0, 10);
               if (filtroDataInicio && rStr < filtroDataInicio) return false
               if (filtroDataFim && rStr > filtroDataFim) return false
