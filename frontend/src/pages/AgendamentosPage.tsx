@@ -358,12 +358,18 @@ export default function AgendamentosPage() {
 
       {loading ? <p>Carregando...</p> : (
         <div className="card">
-          {/* FIX (William 2026-08-24): filtro de data da retirada (client-side) */}
+          {/* FIX (William 2026-09-23): filtro de data da retirada (client-side)
+              blindado contra retiradaData invalido (null/undefined/NaN) */}
           {(() => {
             const filtrados = agendamentos.filter((a: any) => {
               if (!filtroDataInicio && !filtroDataFim) return true
-              const r = new Date(a.retiradaData)
-              const rStr = r.toISOString().slice(0, 10)
+              // FIX (William 2026-09-23): protege contra new Date(invalid).toISOString()
+              // que joga RangeError. Se retiradaData for vazio, assume dataMissao.
+              const dataRef = a.retiradaData ?? a.dataMissao;
+              if (!dataRef) return true;  // sem data: deixa passar (filtro nao bloqueia)
+              const r = new Date(dataRef);
+              if (isNaN(r.getTime())) return true;  // data invalida: deixa passar
+              const rStr = r.toISOString().slice(0, 10);
               if (filtroDataInicio && rStr < filtroDataInicio) return false
               if (filtroDataFim && rStr > filtroDataFim) return false
               return true
