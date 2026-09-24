@@ -358,20 +358,17 @@ export default function AgendamentosPage() {
 
       {loading ? <p>Carregando...</p> : (
         <div className="card">
-          {/* FIX (William 2026-09-23): filtro de data da retirada (client-side)
-              blindado contra retiradaData invalido E usando dataMissao como
-              referencia real (retiradaData vem quebrado do backend). */}
+          {/* FIX (William 2026-09-23 v2): filtro de data (client-side)
+              blindado contra valores invalidos. dataMissao vem como STRING
+              com timestamp MS (ex: "1790121600000"), precisa converter pra numero. */}
           {(() => {
             const filtrados = agendamentos.filter((a: any) => {
               if (!filtroDataInicio && !filtroDataFim) return true
-              // FIX: usa dataMissao como referencia (retiradaData vem com bug do backend)
-              const dataRef = a.dataMissao;
-              if (!dataRef) return true;
-              const r = new Date(dataRef);
-              if (isNaN(r.getTime())) return true;  // data invalida: nao bloqueia
-              // FIX: timezone BRT explicito (Vercel roda em UTC mas usuarios sao BRT)
-              // dataMissao ja vem como YYYY-MM-DD (YYYY-MM-DDTHH:MM:SS.sssZ),
-              // entao slice(0,10) ja da a data correta sem mudanca de timezone
+              // dataMissao vem como string "1790121600000" (timestamp MS em string)
+              const ts = Number(a.dataMissao);
+              if (!ts || isNaN(ts)) return true;  // sem data valida: nao bloqueia
+              const r = new Date(ts);
+              if (isNaN(r.getTime())) return true;
               const rStr = r.toISOString().slice(0, 10);
               if (filtroDataInicio && rStr < filtroDataInicio) return false
               if (filtroDataFim && rStr > filtroDataFim) return false
